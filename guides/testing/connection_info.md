@@ -1,27 +1,27 @@
-# Database Connection Information
+# データベース接続情報
 
-## Neo4j Connection Details
+## Neo4j 接続情報
 
-- **Username**: neo4j
-- **Password**: password
-- **HTTP Port**: 7474 (Browser interface)
-- **Bolt Port**: 7687 (Application connection)
-- **Database**: neo4j (default)
+- **ユーザー名**: neo4j
+- **パスワード**: password
+- **HTTP ポート**: 7474（ブラウザインターフェース）
+- **Bolt ポート**: 7687（アプリケーション接続）
+- **データベース**: neo4j（デフォルト）
 
-To access the Neo4j Browser:
-- Open http://localhost:7474 in your web browser
-- Log in with neo4j/password
+Neo4j ブラウザにアクセスするには：
+- Web ブラウザで http://localhost:7474 を開く
+- neo4j/password でログイン
 
-## Qdrant Connection Details
+## Qdrant 接続情報
 
-- **Host**: localhost
-- **HTTP Port**: 6333 (REST API)
-- **gRPC Port**: 6334
-- **Collection Name**: document_chunks
+- **ホスト**: localhost
+- **HTTP ポート**: 6333（REST API）
+- **gRPC ポート**: 6334
+- **コレクション名**: document_chunks
 
-## Environment Variables
+## 環境変数
 
-Add these to your `.env` file:
+`.env` ファイルに以下を追加してください：
 
 ```
 # Neo4j
@@ -35,34 +35,34 @@ QDRANT_PORT=6333
 QDRANT_COLLECTION=document_chunks
 ```
 
-## Connection Testing
+## 接続テスト
 
-The `test_connections.py` script will verify that both databases are accessible and working correctly. If you encounter any issues, refer to the troubleshooting section in the main documentation.
+`test_connections.py` スクリプトにより、両データベースがアクセス可能で正常に動作していることを検証できます。問題が発生した場合は、メインドキュメントのトラブルシューティングセクションを参照してください。
 
-## Verified Connection Information
+## 検証済み接続情報
 
-Our connection test script has confirmed the following connection details:
+接続テストスクリプトにより、以下の接続情報が確認されています：
 
-### Neo4j Database
-- **HTTP Port**: 7474 (Browser interface)
-- **Bolt Port**: 7687 (Application connection)
-- **Authentication**: neo4j/password
-- **Status**: Connected successfully ✅
-- **Database Contents**: 
-  - 162 Document nodes
-  - 2785 Content nodes
-  - 3652 Total nodes
+### Neo4j データベース
+- **HTTP ポート**: 7474（ブラウザインターフェース）
+- **Bolt ポート**: 7687（アプリケーション接続）
+- **認証**: neo4j/password
+- **ステータス**: 接続成功 ✅
+- **データベース内容**:
+  - 162 Document ノード
+  - 2785 Content ノード
+  - 3652 ノード合計
 
-### Qdrant Vector Database
-- **HTTP Port**: 6333 (REST API)
-- **Collection**: document_chunks
-- **Vector Count**: 2785 vectors
-- **Vector Dimension**: 384
-- **Status**: Connected successfully ✅
+### Qdrant ベクトルデータベース
+- **HTTP ポート**: 6333（REST API）
+- **コレクション**: document_chunks
+- **ベクトル数**: 2785 ベクトル
+- **ベクトル次元**: 384
+- **ステータス**: 接続成功 ✅
 
-## Connection Configuration for MCP
+## MCP 用接続設定
 
-Add the following to your MCP server's `.env` file:
+MCP サーバーの `.env` ファイルに以下を追加してください：
 
 ```env
 NEO4J_URI=bolt://localhost:7687
@@ -74,12 +74,12 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 EMBEDDING_DIMENSION=384
 ```
 
-## Implementation Note
+## 実装上の注意
 
-Be aware that your Qdrant client version (1.13.3) is newer than your Qdrant server version (1.5.1), which may cause some compatibility issues with certain API features. The test successfully connected and performed a basic search, but you might need to adjust some code if using advanced features.
+Qdrant クライアントバージョン（1.13.3）が Qdrant サーバーバージョン（1.5.1）より新しいため、一部の API 機能で互換性の問題が発生する可能性があります。テストでは接続と基本的な検索に成功しましたが、高度な機能を使用する場合はコードの調整が必要になる可能性があります。
 
-## Next Steps
+## 次のステップ
 
-1. Update your MCP server configuration with these verified connection details
-2. Test basic query functionality
-3. Implement error handling for version compatibility issues 
+1. これらの検証済み接続情報で MCP サーバー設定を更新
+2. 基本的なクエリ機能をテスト
+3. バージョン互換性の問題に対するエラーハンドリングを実装

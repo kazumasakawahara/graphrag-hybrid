@@ -1,24 +1,24 @@
-# GraphRAG Examples
+# GraphRAG 使用例
 
-This guide provides practical examples of using the GraphRAG system in various scenarios.
+このガイドでは、さまざまなシナリオでの GraphRAG システムの実用的な使用例を紹介します。
 
-## Basic Search Example
+## 基本的な検索の例
 
 ```python
 from graphrag import GraphRAGTool
 
 async def basic_search():
-    # Initialize the tool
+    # ツールを初期化
     tool = GraphRAGTool()
-    
+
     try:
-        # Execute a simple search
+        # シンプルな検索を実行
         results = await tool.execute(
             query="How to configure Neo4j authentication?",
             limit=5
         )
-        
-        # Process results
+
+        # 結果を処理
         if results['status'] == 'success':
             for doc in results['results']:
                 print(f"Title: {doc['title']}")
@@ -29,20 +29,20 @@ async def basic_search():
         tool.cleanup()
 ```
 
-## Category-Filtered Search
+## カテゴリフィルター付き検索
 
 ```python
 async def category_search():
     tool = GraphRAGTool()
-    
+
     try:
-        # Search within a specific category
+        # 特定のカテゴリ内で検索
         results = await tool.execute(
             query="How to set up replication?",
             category="deployment",
             limit=3
         )
-        
+
         if results['status'] == 'success':
             print(f"Found {results['count']} results:")
             for doc in results['results']:
@@ -53,19 +53,19 @@ async def category_search():
         tool.cleanup()
 ```
 
-## Related Documents Search
+## 関連ドキュメント検索
 
 ```python
 async def related_docs_search():
     tool = GraphRAGTool()
-    
+
     try:
-        # Search with related documents
+        # 関連ドキュメント付きで検索
         results = await tool.execute(
             query="Neo4j backup strategies",
             limit=2
         )
-        
+
         if results['status'] == 'success':
             for doc in results['results']:
                 print(f"Main Document: {doc['title']}")
@@ -77,7 +77,7 @@ async def related_docs_search():
         tool.cleanup()
 ```
 
-## Error Handling Example
+## エラーハンドリングの例
 
 ```python
 from graphrag import GraphRAGTool, ErrorLogger
@@ -85,9 +85,9 @@ from graphrag import GraphRAGTool, ErrorLogger
 async def robust_search():
     tool = GraphRAGTool()
     logger = ErrorLogger()
-    
+
     try:
-        # Attempt search with retry
+        # リトライ付きで検索を試行
         for attempt in range(3):
             try:
                 results = await tool.execute(
@@ -110,7 +110,7 @@ async def robust_search():
         tool.cleanup()
 ```
 
-## Health Check Example
+## ヘルスチェックの例
 
 ```python
 from graphrag import GraphRAGTool, HealthCheck
@@ -118,23 +118,23 @@ from graphrag import GraphRAGTool, HealthCheck
 async def system_health_check():
     tool = GraphRAGTool()
     health_checker = HealthCheck(tool.manager)
-    
+
     try:
-        # Check system health
+        # システムの正常性をチェック
         status = await health_checker.check_health()
-        
+
         print("System Health Status:")
         print(f"Timestamp: {status['timestamp']}")
-        
-        # Neo4j status
+
+        # Neo4j のステータス
         print("\nNeo4j:")
         print(f"Status: {status['neo4j']['status']}")
         if 'message' in status['neo4j']:
             print(f"Message: {status['neo4j']['message']}")
         elif 'error' in status['neo4j']:
             print(f"Error: {status['neo4j']['error']}")
-            
-        # Qdrant status
+
+        # Qdrant のステータス
         print("\nQdrant:")
         print(f"Status: {status['qdrant']['status']}")
         if status['qdrant']['status'] == 'healthy':
@@ -145,7 +145,7 @@ async def system_health_check():
         tool.cleanup()
 ```
 
-## Batch Processing Example
+## バッチ処理の例
 
 ```python
 from graphrag import GraphRAGTool
@@ -153,11 +153,11 @@ from typing import List
 
 async def batch_search(queries: List[str]):
     tool = GraphRAGTool()
-    
+
     try:
         results = []
         for query in queries:
-            # Execute search for each query
+            # 各クエリの検索を実行
             response = await tool.execute(query=query)
             if response['status'] == 'success':
                 results.append({
@@ -167,12 +167,12 @@ async def batch_search(queries: List[str]):
             else:
                 print(f"Failed query: {query}")
                 print(f"Error: {response.get('error')}")
-                
+
         return results
     finally:
         tool.cleanup()
 
-# Usage example
+# 使用例
 queries = [
     "Neo4j backup strategies",
     "Qdrant optimization techniques",
@@ -185,7 +185,7 @@ for item in results:
     print(f"Found {len(item['results'])} results")
 ```
 
-## Custom Ranking Example
+## カスタムランキングの例
 
 ```python
 from graphrag import GraphRAGTool
@@ -194,51 +194,51 @@ from typing import List, Dict, Any
 class CustomRankedSearch:
     def __init__(self):
         self.tool = GraphRAGTool()
-        
-    def rank_results(self, results: List[Dict[Any, Any]], 
+
+    def rank_results(self, results: List[Dict[Any, Any]],
                     weights: Dict[str, float]) -> List[Dict[Any, Any]]:
-        """Custom ranking function."""
+        """カスタムランキング関数"""
         for result in results:
-            # Calculate weighted score
+            # 重み付きスコアを計算
             score = result['score'] * weights.get('similarity', 1.0)
-            
-            # Adjust score based on related documents
+
+            # 関連ドキュメント数に基づいてスコアを調整
             related_count = len(result['related_docs'])
             score += related_count * weights.get('relations', 0.1)
-            
-            # Adjust score based on category
+
+            # カテゴリに基づいてスコアを調整
             if result['category'] == weights.get('preferred_category'):
                 score *= weights.get('category_boost', 1.2)
-                
+
             result['adjusted_score'] = score
-            
-        # Sort by adjusted score
+
+        # 調整済みスコアでソート
         return sorted(results, key=lambda x: x['adjusted_score'], reverse=True)
-        
+
     async def search(self, query: str, weights: Dict[str, float]):
         try:
-            # Execute basic search
+            # 基本検索を実行
             response = await self.tool.execute(query=query, limit=10)
-            
+
             if response['status'] == 'success':
-                # Apply custom ranking
+                # カスタムランキングを適用
                 ranked_results = self.rank_results(
                     response['results'],
                     weights
                 )
                 return {
                     'status': 'success',
-                    'results': ranked_results[:5]  # Return top 5
+                    'results': ranked_results[:5]  # 上位5件を返す
                 }
             return response
         finally:
             self.tool.cleanup()
 
-# Usage example
+# 使用例
 weights = {
-    'similarity': 1.0,      # Base similarity score weight
-    'relations': 0.1,       # Weight for related documents
-    'category_boost': 1.2,  # Boost for preferred category
+    'similarity': 1.0,      # ベース類似度スコアの重み
+    'relations': 0.1,       # 関連ドキュメントの重み
+    'category_boost': 1.2,  # 優先カテゴリのブースト
     'preferred_category': 'setup'
 }
 
@@ -249,7 +249,7 @@ results = await searcher.search(
 )
 ```
 
-## Integration with MCP Server
+## MCP サーバーとの統合
 
 ```python
 from mcp.tools import BaseTool
@@ -258,25 +258,25 @@ from graphrag import GraphRAGTool
 class GraphRAGMCPTool(BaseTool):
     name = "GraphRAG"
     description = "Search through documentation using GraphRAG"
-    
+
     def __init__(self):
         super().__init__()
         self.tool = GraphRAGTool()
-        
+
     async def execute(self, query: str, **kwargs):
         try:
-            # Extract parameters
+            # パラメータを抽出
             limit = kwargs.get('limit', 5)
             category = kwargs.get('category')
-            
-            # Execute search
+
+            # 検索を実行
             results = await self.tool.execute(
                 query=query,
                 limit=limit,
                 category=category
             )
-            
-            # Format response for MCP
+
+            # MCP 用にレスポンスをフォーマット
             if results['status'] == 'success':
                 return {
                     'success': True,
@@ -297,39 +297,39 @@ class GraphRAGMCPTool(BaseTool):
             }
         finally:
             self.tool.cleanup()
-            
+
     def cleanup(self):
-        """Clean up resources when the tool is unloaded."""
+        """ツールのアンロード時にリソースをクリーンアップ"""
         if hasattr(self, 'tool'):
             self.tool.cleanup()
 ```
 
-## Running the Examples
+## サンプルの実行方法
 
-To run these examples:
+これらのサンプルを実行するには：
 
-1. Ensure both Neo4j and Qdrant are running
-2. Install required packages:
+1. Neo4j と Qdrant の両方が実行中であることを確認
+2. 必要なパッケージをインストール：
    ```bash
-   pip install neo4j qdrant-client sentence-transformers
+   uv add neo4j qdrant-client sentence-transformers
    ```
-3. Set up environment variables or update connection parameters
-4. Run the examples:
+3. 環境変数を設定するか、接続パラメータを更新
+4. サンプルを実行：
    ```python
    import asyncio
-   
+
    async def main():
-       # Basic search
+       # 基本検索
        await basic_search()
-       
-       # Category search
+
+       # カテゴリ検索
        await category_search()
-       
-       # Health check
+
+       # ヘルスチェック
        await system_health_check()
-       
+
    if __name__ == "__main__":
        asyncio.run(main())
    ```
 
-See [Connection Setup](connection.md) for detailed configuration instructions. 
+詳細な設定方法については、[接続セットアップ](connection.md)を参照してください。

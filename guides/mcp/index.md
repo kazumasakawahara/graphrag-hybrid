@@ -1,52 +1,52 @@
-# GraphRAG Model Context Protocol Integration Guide
+# GraphRAG Model Context Protocol 統合ガイド
 
-This guide provides detailed instructions for developing Model Context Protocol (MCP) components capable of querying the hybrid Neo4j and Qdrant database system. The integration supports powerful document retrieval with both semantic search capabilities and graph-based context expansion.
+このガイドでは、ハイブリッド Neo4j と Qdrant データベースシステムをクエリできる Model Context Protocol（MCP）コンポーネントの開発方法を詳しく説明します。この統合により、セマンティック検索機能とグラフベースのコンテキスト拡張を組み合わせた強力なドキュメント検索が可能になります。
 
-> **Note**: MCP (Model Context Protocol) is a framework for building tools that integrate with large language models (LLMs) to provide structured access to external data sources.
+> **注意**: MCP（Model Context Protocol）は、外部データソースへの構造化されたアクセスを提供するために大規模言語モデル（LLM）と統合するツールを構築するためのフレームワークです。
 
-## System Architecture Overview
+## システムアーキテクチャ概要
 
-The GraphRAG system combines:
+GraphRAG システムは以下を組み合わせています：
 
-1. **Neo4j Graph Database**: Stores document relationships, categories, and metadata 
-2. **Qdrant Vector Database**: Stores document chunk embeddings for semantic search
+1. **Neo4j グラフデータベース**: ドキュメントの関係性、カテゴリ、メタデータを保存
+2. **Qdrant ベクトルデータベース**: セマンティック検索用のドキュメントチャンクエンベディングを保存
 
-This hybrid approach enables:
-- Semantic similarity search (finding content based on meaning)
-- Graph-based context expansion (finding related documents)
-- Filtered searches based on document categories or other metadata
+このハイブリッドアプローチにより以下が可能になります：
+- セマンティック類似検索（意味に基づくコンテンツの検索）
+- グラフベースのコンテキスト拡張（関連ドキュメントの検索）
+- ドキュメントカテゴリやその他のメタデータに基づくフィルタリング検索
 
-## Connection Parameters
+## 接続パラメータ
 
-### Verified Database Endpoints
+### 検証済みデータベースエンドポイント
 
-| Database | Service | Port | Authentication |
+| データベース | サービス | ポート | 認証 |
 |----------|---------|------|---------------|
 | Neo4j    | HTTP    | 7474 | neo4j/password |
 | Neo4j    | Bolt    | 7687 | neo4j/password |
-| Qdrant   | HTTP    | 6333 | None (default) |
+| Qdrant   | HTTP    | 6333 | なし（デフォルト） |
 
-### Environment Variables
+### 環境変数
 
-Use these environment variables in your MCP server configuration:
+MCP サーバーの設定で以下の環境変数を使用してください：
 
 ```
-# Neo4j Configuration
-NEO4J_URI=bolt://localhost:7687  
+# Neo4j 設定
+NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
 
-# Qdrant Configuration
+# Qdrant 設定
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 QDRANT_COLLECTION=document_chunks
 ```
 
-## MCP Tool Implementation
+## MCP ツール実装
 
-### DocumentationGPTTool Class
+### DocumentationGPTTool クラス
 
-Below is a sample implementation of a Model Context Protocol tool that can query the GraphRAG system:
+以下は GraphRAG システムをクエリできる Model Context Protocol ツールのサンプル実装です：
 
 ```python
 import os
@@ -56,137 +56,137 @@ from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
 class DocumentationGPTTool:
-    """MCP Tool for querying the GraphRAG documentation system."""
-    
+    """GraphRAG ドキュメントシステムをクエリする MCP ツール"""
+
     def __init__(self):
-        # Neo4j connection
+        # Neo4j 接続
         self.neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
         self.neo4j_user = os.getenv("NEO4J_USER", "neo4j")
         self.neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
         self.neo4j_driver = None
-        
-        # Qdrant connection
+
+        # Qdrant 接続
         self.qdrant_host = os.getenv("QDRANT_HOST", "localhost")
         self.qdrant_port = int(os.getenv("QDRANT_PORT", "6333"))
         self.qdrant_collection = os.getenv("QDRANT_COLLECTION", "document_chunks")
         self.qdrant_client = None
-        
-        # Embedding model
+
+        # エンベディングモデル
         self.model_name = "all-MiniLM-L6-v2"
         self.model = None
-        
-        # Initialize connections
+
+        # 接続を初期化
         self._connect()
-    
+
     def _connect(self):
-        """Establish connections to Neo4j and Qdrant."""
-        # Connect to Neo4j
+        """Neo4j と Qdrant への接続を確立"""
+        # Neo4j に接続
         try:
             self.neo4j_driver = GraphDatabase.driver(
-                self.neo4j_uri, 
+                self.neo4j_uri,
                 auth=(self.neo4j_user, self.neo4j_password)
             )
-            # Test connection
+            # 接続テスト
             with self.neo4j_driver.session() as session:
                 result = session.run("MATCH (d:Document) RETURN count(d) AS count")
                 record = result.single()
                 print(f"Connected to Neo4j with {record['count']} documents")
         except Exception as e:
             print(f"Neo4j connection error: {e}")
-        
-        # Connect to Qdrant
+
+        # Qdrant に接続
         try:
-            # Handle potential version compatibility issues
+            # バージョン互換性の問題に対応
             try:
                 self.qdrant_client = QdrantClient(host=self.qdrant_host, port=self.qdrant_port)
                 collection_info = self.qdrant_client.get_collection(self.qdrant_collection)
-                
-                # Check for vectors count based on client version
+
+                # クライアントバージョンに応じたベクトル数の確認
                 vectors_count = 0
                 if hasattr(collection_info, 'vectors_count'):
                     vectors_count = collection_info.vectors_count
                 elif hasattr(collection_info, 'points_count'):
                     vectors_count = collection_info.points_count
                 else:
-                    # Try to navigate the config structure based on observed variations
+                    # 観測されたバリエーションに基づいて設定構造を探索
                     try:
                         if hasattr(collection_info.config, 'params'):
                             if hasattr(collection_info.config.params, 'vectors'):
                                 vectors_count = collection_info.config.params.vectors.size
                     except:
                         pass
-                
+
                 print(f"Connected to Qdrant collection '{self.qdrant_collection}' with {vectors_count} vectors")
             except Exception as e:
                 print(f"Qdrant connection warning: {e}")
-                # Fallback for older versions if needed
+                # 必要に応じて古いバージョン向けのフォールバック
         except Exception as e:
             print(f"Qdrant connection error: {e}")
-        
-        # Load the embedding model
+
+        # エンベディングモデルを読み込み
         try:
             self.model = SentenceTransformer(self.model_name)
             print(f"Loaded embedding model: {self.model_name}")
         except Exception as e:
             print(f"Error loading embedding model: {e}")
-    
+
     def search_documentation(self, query: str, limit: int = 5, category: Optional[str] = None) -> Dict[str, Any]:
         """
-        Search for documentation using semantic search and optionally expand with graph context.
-        
+        セマンティック検索を使用してドキュメントを検索し、オプションでグラフコンテキストで拡張します。
+
         Args:
-            query: The search query
-            limit: Maximum number of results to return
-            category: Optional category filter
-            
+            query: 検索クエリ
+            limit: 返す結果の最大数
+            category: オプションのカテゴリフィルター
+
         Returns:
-            Dictionary with search results and related documents
+            検索結果と関連ドキュメントを含む辞書
         """
         results = {
             "query": query,
             "chunks": [],
             "related_documents": []
         }
-        
-        # Generate embedding for query
+
+        # クエリ用のエンベディングを生成
         if self.model is None:
             try:
                 self.model = SentenceTransformer(self.model_name)
             except Exception as e:
                 results["error"] = f"Failed to load embedding model: {e}"
                 return results
-        
+
         query_embedding = self.model.encode(query)
-        
-        # Search Qdrant
+
+        # Qdrant を検索
         try:
-            # Handle version compatibility issues with the search API
+            # 検索 API のバージョン互換性に対応
             try:
-                # Newer versions use query_vector
+                # 新しいバージョンは query_vector を使用
                 search_result = self.qdrant_client.search(
                     collection_name=self.qdrant_collection,
                     query_vector=query_embedding.tolist(),
                     limit=limit
                 )
             except TypeError:
-                # Fall back to older versions using vector parameter
+                # 古いバージョンは vector パラメータを使用
                 search_result = self.qdrant_client.search(
                     collection_name=self.qdrant_collection,
                     vector=query_embedding.tolist(),
                     limit=limit
                 )
-                
-            # Add search results to response
+
+            # 検索結果をレスポンスに追加
             for result in search_result:
-                # Extract ID and score
+                # ID とスコアを抽出
                 chunk_id = result.id
                 score = result.score
-                
-                # Get text content from payload
+
+                # ペイロードからテキストコンテンツを取得
                 text = ""
                 if hasattr(result, 'payload') and 'text' in result.payload:
                     text = result.payload['text']
-                
+
                 results["chunks"].append({
                     "chunk_id": chunk_id,
                     "text": text,
@@ -194,51 +194,51 @@ class DocumentationGPTTool:
                 })
         except Exception as e:
             results["error"] = f"Qdrant search error: {e}"
-        
-        # Expand with related documents from Neo4j
+
+        # Neo4j から関連ドキュメントで拡張
         if self.neo4j_driver and len(results["chunks"]) > 0:
             try:
                 with self.neo4j_driver.session() as session:
-                    # Build a query to find documents containing these chunks
-                    # and their related documents
+                    # これらのチャンクを含むドキュメントと
+                    # その関連ドキュメントを検索するクエリを構築
                     chunk_ids = [chunk["chunk_id"] for chunk in results["chunks"]]
-                    
+
                     cypher_query = """
-                    MATCH (c:Chunk) 
+                    MATCH (c:Chunk)
                     WHERE c.id IN $chunk_ids
                     MATCH (c)-[:PART_OF]->(d:Document)
                     OPTIONAL MATCH (d)-[:RELATED_TO]->(related:Document)
                     WITH DISTINCT d, related
-                    RETURN d.id as doc_id, d.title as title, 
+                    RETURN d.id as doc_id, d.title as title,
                            collect(DISTINCT {doc_id: related.id, title: related.title}) as related_docs
                     """
-                    
+
                     if category:
                         cypher_query = """
-                        MATCH (c:Chunk) 
+                        MATCH (c:Chunk)
                         WHERE c.id IN $chunk_ids
                         MATCH (c)-[:PART_OF]->(d:Document)-[:HAS_CATEGORY]->(cat:Category {name: $category})
                         OPTIONAL MATCH (d)-[:RELATED_TO]->(related:Document)
                         WITH DISTINCT d, related
-                        RETURN d.id as doc_id, d.title as title, 
+                        RETURN d.id as doc_id, d.title as title,
                                collect(DISTINCT {doc_id: related.id, title: related.title}) as related_docs
                         """
-                    
+
                     result = session.run(cypher_query, chunk_ids=chunk_ids, category=category)
-                    
-                    # Process results
+
+                    # 結果を処理
                     related_docs = set()
                     for record in result:
                         doc_id = record["doc_id"]
                         title = record["title"]
-                        
-                        # Add the document itself
+
+                        # ドキュメント自体を追加
                         results["related_documents"].append({
                             "doc_id": doc_id,
                             "title": title
                         })
-                        
-                        # Add related documents
+
+                        # 関連ドキュメントを追加
                         for related in record["related_docs"]:
                             if related["doc_id"] not in related_docs:
                                 related_docs.add(related["doc_id"])
@@ -246,20 +246,20 @@ class DocumentationGPTTool:
                                     "doc_id": related["doc_id"],
                                     "title": related["title"]
                                 })
-                                
-                                # Limit the number of related documents
+
+                                # 関連ドキュメントの数を制限
                                 if len(related_docs) >= limit:
                                     break
-                        
+
             except Exception as e:
                 results["error"] = f"Neo4j query error: {e}"
-        
+
         return results
 ```
 
-### MCP Configuration
+### MCP 設定
 
-Register the tool in your Model Context Protocol server's tool configuration:
+Model Context Protocol サーバーのツール設定にツールを登録します：
 
 ```python
 from documentation_tool import DocumentationGPTTool
@@ -290,70 +290,67 @@ def register_documentation_tool():
     }
 ```
 
-## Error Handling Considerations
+## エラーハンドリングの考慮事項
 
-When implementing GraphRAG in Model Context Protocol, include the following error handling strategies:
+Model Context Protocol で GraphRAG を実装する際は、以下のエラーハンドリング戦略を含めてください：
 
-1. **Database Connection Failures**: 
-   - Implement connection retry logic with exponential backoff
-   - Provide meaningful error messages for connection issues
+1. **データベース接続障害**:
+   - 指数バックオフ付きの接続リトライロジックを実装
+   - 接続の問題に対する意味のあるエラーメッセージを提供
 
-2. **Version Compatibility Issues**:
-   - Handle Qdrant API differences (as shown in the sample code)
-   - Provide fallbacks for different Neo4j APOC versions
+2. **バージョン互換性の問題**:
+   - Qdrant API の違いに対応（サンプルコードに示す通り）
+   - 異なる Neo4j APOC バージョンのフォールバックを提供
 
-3. **Query Timeout Handling**:
-   - Set appropriate timeouts for both Neo4j and Qdrant queries
-   - Implement circuit breakers for degraded performance
+3. **クエリタイムアウトの処理**:
+   - Neo4j と Qdrant の両方のクエリに適切なタイムアウトを設定
+   - パフォーマンス低下時のサーキットブレーカーを実装
 
-4. **Content Not Found**:
-   - Return helpful messages when searches yield no results
-   - Suggest related topics based on partial matches
+4. **コンテンツが見つからない場合**:
+   - 検索結果がない場合に有用なメッセージを返す
+   - 部分一致に基づいて関連トピックを提案
 
-## Testing Your Implementation
+## 実装のテスト
 
-You can test your MCP tool implementation using the provided query tester:
+提供されたクエリテスターを使用して MCP ツールの実装をテストできます：
 
 ```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Run the test script
-python scripts/testing/query_tester.py
+# テストスクリプトを実行
+uv run python scripts/testing/query_tester.py
 ```
 
-## Advanced Integration Techniques
+## 高度な統合テクニック
 
-### Hybrid Search Implementation
+### ハイブリッド検索の実装
 
-For more sophisticated search capabilities, implement hybrid search by combining vector similarity scores with graph-based relevance:
+より高度な検索機能を実現するには、ベクトル類似度スコアとグラフベースの関連性を組み合わせたハイブリッド検索を実装します：
 
 ```python
-def hybrid_search(self, query: str, limit: int = 5, category: Optional[str] = None, 
+def hybrid_search(self, query: str, limit: int = 5, category: Optional[str] = None,
                   expand_context: bool = True) -> Dict[str, Any]:
     """
-    Perform hybrid search using both vector similarity and graph context.
-    
+    ベクトル類似性とグラフコンテキストの両方を使用したハイブリッド検索を実行します。
+
     Args:
-        query: Search query
-        limit: Maximum results
-        category: Optional category filter
-        expand_context: Whether to expand results with graph context
-        
+        query: 検索クエリ
+        limit: 最大結果数
+        category: オプションのカテゴリフィルター
+        expand_context: グラフコンテキストで結果を拡張するかどうか
+
     Returns:
-        Combined search results
+        統合された検索結果
     """
-    # Get vector search results
+    # ベクトル検索の結果を取得
     vector_results = self.search_documentation(query, limit=limit*2, category=category)
-    
-    # If we don't want expanded context, return vector results
+
+    # コンテキスト拡張が不要な場合、ベクトル結果を返す
     if not expand_context:
         return vector_results
-    
-    # Extract document IDs from vector results
+
+    # ベクトル結果からドキュメント ID を抽出
     doc_ids = [doc["doc_id"] for doc in vector_results.get("related_documents", [])]
-    
-    # Expand with graph context
+
+    # グラフコンテキストで拡張
     try:
         with self.neo4j_driver.session() as session:
             cypher_query = """
@@ -367,10 +364,10 @@ def hybrid_search(self, query: str, limit: int = 5, category: Optional[str] = No
             ORDER BY relevance_score DESC
             LIMIT $limit
             """
-            
+
             result = session.run(cypher_query, doc_ids=doc_ids, limit=limit)
-            
-            # Add expanded results
+
+            # 拡張された結果を追加
             for record in result:
                 vector_results["related_documents"].append({
                     "doc_id": record["doc_id"],
@@ -379,34 +376,34 @@ def hybrid_search(self, query: str, limit: int = 5, category: Optional[str] = No
                 })
     except Exception as e:
         vector_results["error"] = f"Graph expansion error: {e}"
-    
+
     return vector_results
 ```
 
-## Troubleshooting
+## トラブルシューティング
 
-### Common Issues and Solutions
+### よくある問題と解決策
 
-1. **Connection Refused**:
-   - Verify the correct ports: Neo4j on 7687 (Bolt), Qdrant on 6333
-   - Check if the respective services are running
+1. **接続拒否**:
+   - 正しいポートを確認: Neo4j は 7687（Bolt）、Qdrant は 6333
+   - 各サービスが実行中であることを確認
 
-2. **Authentication Failed**:
-   - Confirm Neo4j credentials (default: neo4j/password)
-   - Ensure environment variables are correctly set
+2. **認証失敗**:
+   - Neo4j の認証情報を確認（デフォルト: neo4j/password）
+   - 環境変数が正しく設定されていることを確認
 
-3. **Qdrant Version Compatibility**:
-   - Client warnings about deprecated methods are expected
-   - Use version-aware code as shown in the example
+3. **Qdrant バージョン互換性**:
+   - 非推奨メソッドに関するクライアント警告は想定内
+   - サンプルに示されたバージョン対応コードを使用
 
-4. **Empty Search Results**:
-   - Verify the Qdrant collection name (default: document_chunks)
-   - Check if the embedding model matches the one used for indexing
+4. **空の検索結果**:
+   - Qdrant コレクション名を確認（デフォルト: document_chunks）
+   - エンベディングモデルがインデックス作成時に使用したものと一致しているか確認
 
-## Resources
+## リソース
 
 - [Neo4j Python Driver Documentation](https://neo4j.com/docs/api/python-driver/current/)
 - [Qdrant Python Client Documentation](https://qdrant.tech/documentation/quick-start/)
 - [Sentence-Transformers Documentation](https://www.sbert.net/)
 
-For detailed testing reports and connection information, see [Database Connection Testing](../test_db_connection/index.md).
+テストレポートと接続情報の詳細については、[データベース接続テスト](../test_db_connection/index.md)を参照してください。

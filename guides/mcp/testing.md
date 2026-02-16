@@ -1,18 +1,18 @@
-# Testing MCP Integration with GraphRAG
+# GraphRAG との MCP 統合テスト
 
-This guide provides instructions for testing your MCP integration with the GraphRAG system to ensure proper connectivity and functionality.
+このガイドでは、GraphRAG システムとの MCP 統合をテストして、適切な接続性と機能を確保する方法を説明します。
 
-## Prerequisites
+## 前提条件
 
-- GraphRAG system up and running
-- Neo4j database populated with documents
-- Qdrant database populated with vector embeddings
-- MCP server with the DocumentationGPTTool implemented
-- Python 3.8+ environment
+- GraphRAG システムが起動・稼働していること
+- Neo4j データベースにドキュメントが投入されていること
+- Qdrant データベースにベクトルエンベディングが投入されていること
+- DocumentationGPTTool が実装された MCP サーバー
+- Python 3.8+ 環境
 
-## Connection Testing
+## 接続テスト
 
-First, verify that your MCP server can connect to both databases:
+まず、MCP サーバーが両データベースに接続できることを確認します：
 
 ```python
 import logging
@@ -20,29 +20,29 @@ from neo4j import GraphDatabase
 from qdrant_client import QdrantClient
 import warnings
 
-# Configure logging
+# ロギングを設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Suppress Qdrant version warnings
+# Qdrant バージョン警告を抑制
 warnings.filterwarnings("ignore", category=UserWarning, module="qdrant_client")
 
 def test_neo4j_connection():
-    """Test connection to Neo4j with the verified port"""
+    """検証済みポートで Neo4j への接続をテスト"""
     logger.info("Testing Neo4j connection...")
-    
-    
+
+
     uri = "bolt://localhost:7687"
     username = "neo4j"
     password = "password"
-    
+
     try:
         driver = GraphDatabase.driver(uri, auth=(username, password))
         with driver.session() as session:
             result = session.run("RETURN 'Neo4j connection successful' as message")
             logger.info(result.single()["message"])
-            
-            # Count nodes
+
+            # ノード数をカウント
             count = session.run("MATCH (n) RETURN count(n) as count").single()["count"]
             logger.info(f"Neo4j database contains {count} nodes")
         driver.close()
@@ -52,46 +52,46 @@ def test_neo4j_connection():
         return False
 
 def test_qdrant_connection():
-    """Test connection to Qdrant with the verified port"""
+    """検証済みポートで Qdrant への接続をテスト"""
     logger.info("Testing Qdrant connection...")
-    
-    # Use the verified non-standard port
+
+    # 検証済みの非標準ポートを使用
     try:
         client = QdrantClient(host="localhost", port=6333)
-        # Check if Qdrant is running by making a simple API call
+        # シンプルな API コールで Qdrant の稼働を確認
         status = client.get_collections()
         logger.info(f"Qdrant connection successful. Collections: {len(status.collections)}")
-        
-        # Check document_chunks collection
+
+        # document_chunks コレクションを確認
         if any(c.name == "document_chunks" for c in status.collections):
             collection_info = client.get_collection("document_chunks")
             logger.info(f"document_chunks collection info: {collection_info}")
-            
-            # Get vector count
+
+            # ベクトル数を取得
             try:
                 vectors_count = collection_info.vectors_count
                 logger.info(f"Collection contains {vectors_count} vectors")
             except AttributeError:
-                # Try alternative attribute names for different Qdrant versions
+                # 異なる Qdrant バージョンの代替属性名を試行
                 if hasattr(collection_info, "vectors_count"):
                     logger.info(f"Collection contains {collection_info.vectors_count} vectors")
                 elif hasattr(collection_info, "points_count"):
                     logger.info(f"Collection contains {collection_info.points_count} vectors")
                 else:
                     logger.warning("Could not determine vector count - check Qdrant version compatibility")
-                    
+
         return True
     except Exception as e:
         logger.error(f"Qdrant connection failed: {e}")
         return False
 
 def main():
-    """Run all connection tests"""
+    """すべての接続テストを実行"""
     logger.info("Starting connection tests...")
-    
+
     neo4j_success = test_neo4j_connection()
     qdrant_success = test_qdrant_connection()
-    
+
     if neo4j_success and qdrant_success:
         logger.info("\n✅ All database connections successful!")
     else:
@@ -101,30 +101,30 @@ if __name__ == "__main__":
     main()
 ```
 
-## Functional Testing
+## 機能テスト
 
-After verifying connections, test the actual functionality of your MCP tool implementation:
+接続を確認した後、MCP ツール実装の実際の機能をテストします：
 
 ```python
 from your_mcp_package import DocumentationGPTTool
 
 def test_search_functionality():
-    """Test the search functionality of the DocumentationGPTTool"""
+    """DocumentationGPTTool の検索機能をテスト"""
     print("Testing search functionality...")
-    
-    # Initialize the tool
+
+    # ツールを初期化
     doc_tool = DocumentationGPTTool()
-    
-    # Test with a simple query
+
+    # シンプルなクエリでテスト
     test_query = "database setup"
     print(f"Searching for: '{test_query}'")
-    
+
     results = doc_tool.search_documentation(
         query=test_query,
         limit=3
     )
-    
-    # Print results
+
+    # 結果を表示
     print(f"Found {len(results)} results:")
     for i, result in enumerate(results):
         print(f"\nResult {i+1}:")
@@ -132,10 +132,10 @@ def test_search_functionality():
         print(f"Text snippet: {result.get('text')[:150]}...")
         doc_info = result.get('document', {})
         print(f"Document: {doc_info.get('title', 'Unknown')} ({doc_info.get('id', 'Unknown')})")
-    
-    # Clean up
+
+    # クリーンアップ
     doc_tool.close()
-    
+
     return len(results) > 0
 
 if __name__ == "__main__":
@@ -145,12 +145,12 @@ if __name__ == "__main__":
         print("\n❌ Search functionality test failed!")
 ```
 
-## Integration Testing with MCP
+## MCP との統合テスト
 
-Finally, test the integration with your MCP framework:
+最後に、MCP フレームワークとの統合をテストします：
 
-1. Start your MCP server with the DocumentationGPTTool registered
-2. Send a test request to the MCP API endpoint:
+1. DocumentationGPTTool が登録された MCP サーバーを起動
+2. MCP API エンドポイントにテストリクエストを送信：
 
 ```bash
 curl -X POST http://localhost:8000/api/tools/execute \
@@ -164,23 +164,23 @@ curl -X POST http://localhost:8000/api/tools/execute \
   }'
 ```
 
-Verify that you receive properly formatted results containing relevant documentation.
+関連するドキュメントを含む適切にフォーマットされた結果が返されることを確認してください。
 
-## Troubleshooting
+## トラブルシューティング
 
-If you encounter issues during testing:
+テスト中に問題が発生した場合：
 
-1. **Connection Failures**: Verify port numbers in your configuration (Neo4j: 7687, Qdrant: 6333)
-2. **Version Compatibility**: Ensure your Qdrant client version is compatible with your server
-3. **Empty Results**: Check that your databases are properly populated with document data
-4. **Poor Result Quality**: Adjust your embedding model or search parameters
-5. **Errors in Response Format**: Update your result enrichment logic to match expected format
+1. **接続失敗**: 設定のポート番号を確認（Neo4j: 7687、Qdrant: 6333）
+2. **バージョン互換性**: Qdrant クライアントバージョンがサーバーと互換性があることを確認
+3. **空の結果**: データベースにドキュメントデータが適切に投入されていることを確認
+4. **結果品質が低い**: エンベディングモデルまたは検索パラメータを調整
+5. **レスポンスフォーマットのエラー**: 結果エンリッチメントロジックを期待されるフォーマットに合わせて更新
 
-## Performance Metrics
+## パフォーマンス指標
 
-Monitor these key metrics during testing:
+テスト中に以下の主要な指標を監視してください：
 
-- **Response Time**: Should be under 1 second for most queries
-- **Result Relevance**: At least 70% of results should be relevant to the query
-- **Memory Usage**: Keep below 500MB for the tool instance
-- **Error Rate**: Less than 1% of requests should fail 
+- **レスポンスタイム**: ほとんどのクエリで1秒未満であること
+- **結果の関連性**: 結果の少なくとも70%がクエリに関連していること
+- **メモリ使用量**: ツールインスタンスで500MB以下に抑えること
+- **エラー率**: リクエストの1%未満が失敗すること

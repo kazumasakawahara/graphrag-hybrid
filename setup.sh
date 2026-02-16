@@ -5,27 +5,22 @@
 # Colors for better readability
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}Setting up the Neo4j and Qdrant GraphRAG environment...${NC}"
 
-# Create Python virtual environment
-echo -e "${BLUE}Creating Python virtual environment...${NC}"
-if [ -d "venv" ]; then
-    echo "Virtual environment already exists."
-else
-    python3 -m venv venv
-    echo -e "${GREEN}Virtual environment created.${NC}"
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo -e "${RED}uv is not installed. Please install it first:${NC}"
+    echo -e "${BLUE}curl -LsSf https://astral.sh/uv/install.sh | sh${NC}"
+    exit 1
 fi
 
-# Activate the virtual environment
-echo -e "${BLUE}Activating virtual environment...${NC}"
-source venv/bin/activate
-
-# Install dependencies
-echo -e "${BLUE}Installing Python dependencies...${NC}"
-pip install --upgrade pip
-pip install -r requirements.txt
+# Create Python virtual environment and install dependencies
+echo -e "${BLUE}Creating virtual environment and installing dependencies...${NC}"
+uv sync
+echo -e "${GREEN}Dependencies installed.${NC}"
 
 # Create .env file if it doesn't exist
 if [ ! -f ".env" ]; then
@@ -36,7 +31,7 @@ NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
 
-# Qdrant Configuration  
+# Qdrant Configuration
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 
@@ -50,5 +45,5 @@ EOL
 fi
 
 echo -e "${GREEN}Setup complete!${NC}"
-echo -e "To activate the virtual environment, run: ${BLUE}source venv/bin/activate${NC}"
-echo -e "To start the databases, run: ${BLUE}docker-compose up -d${NC}" 
+echo -e "To run scripts, use: ${BLUE}uv run python <script>${NC}"
+echo -e "To start the databases, run: ${BLUE}docker-compose up -d${NC}"

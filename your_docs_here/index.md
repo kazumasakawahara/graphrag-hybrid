@@ -1,75 +1,75 @@
-# Your Documentation Directory
+# ドキュメント格納ディレクトリ
 
-This directory is where you add your markdown documents to be processed and imported into the GraphRAG hybrid retrieval system. Any `.md` files placed here will be processed, embedded, and stored in both Neo4j and Qdrant databases.
+このディレクトリは、GraphRAG ハイブリッド検索システムに処理・インポートする Markdown ドキュメントを配置する場所です。ここに配置された `.md` ファイルは処理され、埋め込みが生成され、Neo4j と Qdrant の両データベースに保存されます。
 
-## How to Use This Directory
+## このディレクトリの使い方
 
-1. **Add Your Documents**: Place your markdown (`.md`) files in this directory
-2. **Run the Import Script**: Execute `python scripts/import_docs.py --docs-dir your_docs_here/`
-3. **Query Your Content**: Once imported, you can query your content through the GraphRAG system
+1. **ドキュメントを追加**: Markdown（`.md`）ファイルをこのディレクトリに配置
+2. **インポートスクリプトを実行**: `python scripts/import_docs.py --docs-dir your_docs_here/` を実行
+3. **コンテンツをクエリ**: インポート後、GraphRAG システムを通じてコンテンツを検索可能
 
-## Document Format Requirements
+## ドキュメントフォーマット要件
 
-For optimal results, your documents should follow this structure:
+最適な結果を得るには、ドキュメントは以下の構造に従ってください：
 
-### Front Matter Format (Required)
+### フロントマターフォーマット（必須）
 
-Include YAML front matter at the beginning of your documents with these fields:
+ドキュメントの先頭に以下のフィールドを含む YAML フロントマターを記載してください：
 
 ```yaml
 ---
-title: "Document Title"          # The title of your document (required)
-category: "path/to/category"     # Category path for organization (required)
-updated: "YYYY-MM-DD"            # Last updated date (optional)
-related:                         # Related documents (optional)
+title: "ドキュメントタイトル"          # ドキュメントのタイトル（必須）
+category: "path/to/category"         # 分類用のカテゴリパス（必須）
+updated: "YYYY-MM-DD"               # 最終更新日（任意）
+related:                            # 関連ドキュメント（任意）
   - path/to/related1.md
   - path/to/related2.md
-key_concepts:                    # Key concepts for indexing (optional)
+key_concepts:                       # インデックス用キーコンセプト（任意）
   - concept_one
   - concept_two
 ---
 ```
 
-### Document Structure
+### ドキュメント構成
 
-- Start with a single `# Title` (H1) heading after the front matter
-- Use proper heading hierarchy (`##`, `###`, etc.)
-- Include code blocks with language identifiers
-- Use lists, tables, and other markdown features as needed
-- Link to related documents where appropriate
+- フロントマターの後に単一の `# タイトル`（H1）見出しで始める
+- 適切な見出し階層（`##`、`###` など）を使用する
+- 言語識別子付きのコードブロックを含める
+- リスト、テーブルなどの Markdown 機能を必要に応じて使用する
+- 関連ドキュメントへのリンクを適切に配置する
 
-## Example Document
+## サンプルドキュメント
 
-See the included `analytics_example.md` file for a comprehensive example of the recommended document format.
+推奨フォーマットの包括的な例として、同梱の `analytics_example.md` ファイルを参照してください。
 
-## Importing Documents
+## ドキュメントのインポート
 
-To import your documents into the GraphRAG system:
+GraphRAG システムにドキュメントをインポートするには：
 
 ```bash
-# Import all documents from this directory
+# このディレクトリのすべてのドキュメントをインポート
 python scripts/import_docs.py --docs-dir your_docs_here/
 
-# Or import specific documents
+# 特定のドキュメントをインポート
 python scripts/import_docs.py --files your_docs_here/file1.md your_docs_here/file2.md
 
-# To reimport (clear and rebuild)
+# 再インポート（クリアして再構築）
 python scripts/import_docs.py --docs-dir your_docs_here/ --clear
 ```
 
-## Processing Details
+## 処理の詳細
 
-When you run the import script, the system will:
+インポートスクリプトを実行すると、システムは以下の処理を行います：
 
-1. Parse each markdown file and extract front matter metadata
-2. Split the content into manageable chunks
-3. Generate vector embeddings for each chunk
-4. Store document structure and relationships in Neo4j
-5. Store vector embeddings in Qdrant
-6. Create connections between related documents
+1. 各 Markdown ファイルを解析し、フロントマターのメタデータを抽出
+2. コンテンツを適切なサイズのチャンクに分割
+3. 各チャンクのベクトル埋め込みを生成
+4. ドキュメントの構造と関係性を Neo4j に保存
+5. ベクトル埋め込みを Qdrant に保存
+6. 関連ドキュメント間の接続を作成
 
-## Notes
+## 注意事項
 
-- Place your actual documentation files in this directory
-- Remove the example documents before adding your own content if desired
-- The system works best with well-structured, content-rich markdown files 
+- 実際のドキュメントファイルをこのディレクトリに配置してください
+- 必要に応じて、自分のコンテンツを追加する前にサンプルドキュメントを削除できます
+- よく構造化された、コンテンツが充実した Markdown ファイルで最適な結果が得られます

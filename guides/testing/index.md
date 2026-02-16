@@ -1,17 +1,17 @@
-# Database Connection Testing
+# データベース接続テスト
 
-This guide documents the process of testing connections to the Neo4j and Qdrant databases.
+このガイドでは、Neo4j と Qdrant データベースへの接続テストプロセスを文書化しています。
 
-## Initial Setup
+## 初期セットアップ
 
-The GraphRAG system uses standard ports for both databases:
+GraphRAG システムは両データベースに標準ポートを使用します：
 
-- Neo4j runs on bolt port 7687 (standard port)
-- Qdrant runs on HTTP port 6333 (standard port)
+- Neo4j は Bolt ポート 7687（標準ポート）で動作
+- Qdrant は HTTP ポート 6333（標準ポート）で動作
 
-## Environment Configuration
+## 環境設定
 
-For testing, use these environment variables:
+テスト用に以下の環境変数を使用してください：
 
 ```bash
 # Neo4j
@@ -24,46 +24,46 @@ QDRANT_HOST=localhost
 QDRANT_PORT=6333
 ```
 
-## Testing Process
+## テストプロセス
 
-The connection testing process verifies:
+接続テストプロセスでは以下を検証します：
 
-1. Neo4j connection on standard port 7687
-2. Neo4j authentication with default credentials
-3. Qdrant connection on standard port 6333
-4. Qdrant collection existence and access
+1. 標準ポート 7687 での Neo4j 接続
+2. デフォルト認証情報での Neo4j 認証
+3. 標準ポート 6333 での Qdrant 接続
+4. Qdrant コレクションの存在とアクセス
 
-## Test Results
+## テスト結果
 
-Our testing confirmed:
-- Neo4j runs on standard bolt port 7687
-- Qdrant runs on standard HTTP port 6333
-- Both databases are accessible and properly configured
-- Document chunks are stored correctly in both systems
+テストにより以下が確認されました：
+- Neo4j は標準 Bolt ポート 7687 で動作
+- Qdrant は標準 HTTP ポート 6333 で動作
+- 両データベースはアクセス可能で正しく設定されている
+- ドキュメントチャンクは両システムに正しく保存されている
 
-## Debugging Notes
+## デバッグメモ
 
-During testing, we verified:
-- Neo4j connections work on default port 7687
-- Qdrant connections work on default port 6333
-- All database operations function as expected
+テスト中に以下を検証しました：
+- Neo4j 接続はデフォルトポート 7687 で動作
+- Qdrant 接続はデフォルトポート 6333 で動作
+- すべてのデータベース操作が期待通りに機能
 
-## Connection Information
+## 接続情報
 
 ### Neo4j
-- **Host**: localhost
-- **Bolt Port**: 7687
-- **HTTP Port**: 7474
-- **Username**: neo4j
-- **Password**: password
+- **ホスト**: localhost
+- **Bolt ポート**: 7687
+- **HTTP ポート**: 7474
+- **ユーザー名**: neo4j
+- **パスワード**: password
 
 ### Qdrant
-- **Host**: localhost
-- **HTTP Port**: 6333
-- **gRPC Port**: 6334
-- **Collection**: document_chunks
+- **ホスト**: localhost
+- **HTTP ポート**: 6333
+- **gRPC ポート**: 6334
+- **コレクション**: document_chunks
 
-## Environment Variables
+## 環境変数
 
 ```bash
 # Neo4j
@@ -76,26 +76,26 @@ QDRANT_HOST=localhost
 QDRANT_PORT=6333
 ```
 
-## Query Testing
+## クエリテスト
 
-The `scripts/testing/query_tester.py` script runs a variety of queries against both databases:
+`scripts/testing/query_tester.py` スクリプトは、両データベースに対してさまざまなクエリを実行します：
 
 ```bash
 python scripts/testing/query_tester.py
 ```
 
-### Key Debugging Changes
+### 主要なデバッグ変更
 
-When setting up the connections, several adjustments were made:
+接続セットアップ時に以下の調整が行われました：
 
-- Added environment variable loading for configuration
-- Added version handling for Qdrant client compatibility
-- Added error handling for missing properties
-- Added support for different API implementations
+- 設定用の環境変数読み込みを追加
+- Qdrant クライアント互換性のためのバージョンハンドリングを追加
+- 欠損プロパティのエラーハンドリングを追加
+- 異なる API 実装のサポートを追加
 
-## Connection Parameters
+## 接続パラメータ
 
-The current verified connection parameters are:
+現在の検証済み接続パラメータ：
 
 ```env
 NEO4J_URI=bolt://localhost:7687
@@ -105,70 +105,70 @@ QDRANT_HOST=localhost
 QDRANT_PORT=6333
 ```
 
-These parameters are used by all scripts and should be set in your `.env` file.
+これらのパラメータはすべてのスクリプトで使用され、`.env` ファイルに設定する必要があります。
 
-## Troubleshooting
+## トラブルシューティング
 
-If connections fail, verify:
+接続が失敗した場合、以下を確認してください：
 
-1. Docker containers are running: `docker ps | grep graphrag`
-2. Ports are correctly mapped: `docker-compose ps`
-3. Environment variables match your actual configuration
-4. Network access is not blocked by firewall/VPN
+1. Docker コンテナが実行中であること: `docker ps | grep graphrag`
+2. ポートが正しくマッピングされていること: `docker-compose ps`
+3. 環境変数が実際の設定と一致していること
+4. ファイアウォール/VPN でネットワークアクセスがブロックされていないこと
 
-## Contents
+## 内容
 
-- `scripts/testing/test_connections.py` - Main testing script that verifies connectivity to both databases
-- `guides/testing/connection_info.md` - Summary of discovered connection information
-- `scripts/testing/query_tester.py` - Script to test various query patterns against both databases
-- `guides/query_guide.md` - Comprehensive guide for querying Neo4j and Qdrant databases
-- `scripts/testing/query_guidelines.json` - Generated query guidelines in JSON format
-- `guides/testing/index.md` - This documentation file
+- `scripts/testing/test_connections.py` - 両データベースへの接続を検証するメインテストスクリプト
+- `guides/testing/connection_info.md` - 発見された接続情報のまとめ
+- `scripts/testing/query_tester.py` - 両データベースに対する各種クエリパターンのテストスクリプト
+- `guides/query_guide.md` - Neo4j と Qdrant データベースクエリの包括的ガイド
+- `scripts/testing/query_guidelines.json` - 生成されたクエリガイドライン（JSON 形式）
+- `guides/testing/index.md` - このドキュメントファイル
 
-## Testing Process and Findings
+## テストプロセスと調査結果
 
-### Connection Discovery Process
+### 接続検出プロセス
 
-The testing process revealed several important configuration details:
+テストプロセスにより、いくつかの重要な設定の詳細が判明しました：
 
-1. **Non-standard ports**: 
-   - Neo4j runs on bolt port 7688 (instead of default 7687)
-   - Qdrant runs on HTTP port 6335 (instead of default 6333)
+1. **非標準ポート**:
+   - Neo4j は Bolt ポート 7688（デフォルト 7687 の代わり）で動作
+   - Qdrant は HTTP ポート 6335（デフォルト 6333 の代わり）で動作
 
-2. **Version compatibility issues**:
-   - Qdrant client version (1.13.3) is newer than server version (1.5.1)
-   - API differences between versions required special handling
+2. **バージョン互換性の問題**:
+   - Qdrant クライアントバージョン（1.13.3）がサーバーバージョン（1.5.1）より新しい
+   - バージョン間の API の違いに特別な対応が必要
 
-### Debugging Issues Encountered
+### 遭遇したデバッグ問題
 
-During development of the test script, we encountered and resolved several issues:
+テストスクリプトの開発中に、以下の問題を遭遇し解決しました：
 
-1. **Neo4j Port Discovery**
-   - Initial connections to port 7687 failed with "Connection refused" errors
-   - Added multi-port testing to discover the correct port (7688)
+1. **Neo4j ポートの検出**
+   - ポート 7687 への初期接続で「Connection refused」エラーが発生
+   - 正しいポート（7688）を検出するためのマルチポートテストを追加
 
-2. **Qdrant Port Discovery**
-   - Initial connections to port 6333 failed
-   - Added multi-port testing to discover the correct port (6335)
+2. **Qdrant ポートの検出**
+   - ポート 6333 への初期接続が失敗
+   - 正しいポート（6335）を検出するためのマルチポートテストを追加
 
-3. **Qdrant Version Compatibility**
-   - Warnings about version incompatibility (1.13.3 client vs 1.5.1 server)
-   - Initial fix attempt with `check_version=False` failed (parameter not supported)
-   - Used Python's `warnings.filterwarnings()` to suppress warnings
+3. **Qdrant バージョン互換性**
+   - バージョン非互換の警告（1.13.3 クライアント vs 1.5.1 サーバー）
+   - `check_version=False` での初期修正試行が失敗（パラメータ未サポート）
+   - Python の `warnings.filterwarnings()` を使用して警告を抑制
 
-4. **Qdrant API Changes Between Versions**
-   - Error: `'CollectionParams' object has no attribute 'vector_size'`
-   - Added version-aware code to check for different attribute names
-   - Implemented fallback values for missing attributes
+4. **バージョン間の Qdrant API 変更**
+   - エラー: `'CollectionParams' object has no attribute 'vector_size'`
+   - 異なる属性名をチェックするバージョン対応コードを追加
+   - 欠損属性のフォールバック値を実装
 
-5. **Error Handling Improvements**
-   - Added try/except blocks for all API calls
-   - Created default values for missing properties
-   - Fixed variable scope issues for `vectors_count` and `dimension`
+5. **エラーハンドリングの改善**
+   - すべての API 呼び出しに try/except ブロックを追加
+   - 欠損プロパティのデフォルト値を作成
+   - `vectors_count` と `dimension` の変数スコープの問題を修正
 
-### Key Connection Information
+### 主要な接続情報
 
-Based on the test results, the correct connection parameters are:
+テスト結果に基づく正しい接続パラメータ：
 
 ```env
 NEO4J_URI=bolt://localhost:7688
@@ -178,40 +178,37 @@ QDRANT_HOST=localhost
 QDRANT_PORT=6335
 ```
 
-## Running the Test
+## テストの実行
 
-To run the connection test:
+接続テストを実行するには：
 
 ```bash
-# Activate virtual environment
-source venv/bin/activate
+# 依存パッケージが未インストールの場合
+uv sync
 
-# Install dependencies if needed
-pip install neo4j qdrant-client
-
-# Run the test
-python scripts/testing/test_connections.py
+# テストを実行
+uv run python scripts/testing/test_connections.py
 ```
 
-## Database Content
+## データベースコンテンツ
 
-The test confirmed:
+テストにより以下が確認されました：
 
-- **Neo4j**: 162 Document nodes and 2785 Content nodes (3652 total nodes)
-- **Qdrant**: "document_chunks" collection with 2785 vectors (dimension 384)
+- **Neo4j**: 162 Document ノードと 2785 Content ノード（合計 3652 ノード）
+- **Qdrant**: 2785 ベクトルを持つ「document_chunks」コレクション（次元 384）
 
-## Integration Recommendations
+## 連携の推奨事項
 
-When integrating with these databases:
+これらのデータベースと連携する際：
 
-1. Always use the verified connection parameters above
-2. Implement version-aware code to handle Qdrant API differences
-3. Use try/except blocks to handle potential API inconsistencies
-4. Add fallbacks for essential parameters (like vector dimension)
-5. Consider pinning the Qdrant client version to match the server version (1.5.x)
+1. 上記の検証済み接続パラメータを常に使用する
+2. Qdrant API の違いに対応するバージョン対応コードを実装する
+3. 潜在的な API の不整合に対応する try/except ブロックを使用する
+4. 必須パラメータ（ベクトル次元など）のフォールバックを追加する
+5. サーバーバージョン（1.5.x）に合わせた Qdrant クライアントバージョンの固定を検討する
 
-## Helpful Resources
+## 参考リソース
 
 - [Neo4j Python Driver Documentation](https://neo4j.com/docs/api/python-driver/current/)
 - [Qdrant Client Documentation](https://qdrant.tech/documentation/quick-start/)
-- [GraphRAG Integration Guide](../graphrag_integration_guide.md) 
+- [GraphRAG 連携ガイド](../graphrag_integration_guide.md)

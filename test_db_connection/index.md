@@ -1,89 +1,86 @@
-# Database Connection Testing
+# データベース接続テスト
 
-This directory contains scripts and documentation for testing connections to the Neo4j and Qdrant databases used in the GraphRAG system.
+このディレクトリには、GraphRAG システムで使用する Neo4j と Qdrant データベースへの接続テスト用のスクリプトとドキュメントが含まれています。
 
-## Contents
+## 内容
 
-- `test_connections.py`: Main script for testing database connections and content verification
-- `connection_info.md`: Summary of connection parameters and findings
+- `test_connections.py`: データベース接続とコンテンツ検証のメインテストスクリプト
+- `connection_info.md`: 接続パラメータと調査結果のまとめ
 
-## Testing Process and Findings
+## テストプロセスと調査結果
 
-Through extensive testing, we discovered:
+広範なテストにより、以下が判明しました：
 
-1. **Port Discovery**: 
-   - Neo4j is using standard ports:
-     - HTTP Port: 7474
-     - Bolt Port: 7687
-   - Qdrant is using standard port:
-     - HTTP Port: 6333
+1. **ポートの確認**:
+   - Neo4j は標準ポートを使用：
+     - HTTP ポート: 7474
+     - Bolt ポート: 7687
+   - Qdrant は標準ポートを使用：
+     - HTTP ポート: 6333
 
-2. **Database Content Verification**:
-   - Successfully connected to both databases
-   - Neo4j contains 162 documents, with approximately 20,112 chunks
-   - Qdrant contains 20,112 vectors with matching document IDs
+2. **データベースコンテンツの検証**:
+   - 両データベースへの接続に成功
+   - Neo4j には 162 のドキュメント、約 20,112 のチャンクが含まれる
+   - Qdrant には対応するドキュメント ID を持つ 20,112 のベクトルが含まれる
 
-## Connection Details
+## 接続情報
 
-Database connections:
+データベース接続：
 
 **Neo4j**
-- HTTP Port: 7474
-- Bolt Port: 7687
-- Authentication: neo4j/password
+- HTTP ポート: 7474
+- Bolt ポート: 7687
+- 認証: neo4j/password
 
 **Qdrant**
-- HTTP Port: 6333
-- Collection: document_chunks
+- HTTP ポート: 6333
+- コレクション: document_chunks
 
-## Test Scripts
+## テストスクリプト
 
-- `test_connections.py` - Tests connections to both Neo4j and Qdrant databases
+- `test_connections.py` - Neo4j と Qdrant 両データベースへの接続テスト
 
-## Running Tests
+## テストの実行
 
-To verify database connections:
+データベース接続を検証するには：
 
 ```bash
-# Activate virtual environment if needed
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Run the test script
-python test_db_connection/test_connections.py
+# テストスクリプトを実行
+uv run python test_db_connection/test_connections.py
 ```
 
-## Expected Output
+## 期待される出力
 
-When successful, the test script will:
+テストが成功すると、スクリプトは以下を行います：
 
-1. Connect to Neo4j on port 7687
-2. Run a simple query to verify connection
-3. Count nodes in the Neo4j database
-4. Connect to Qdrant on port 6333
-5. Verify the Qdrant service health
-6. List available collections
-7. Display information about the document_chunks collection
+1. ポート 7687 で Neo4j に接続
+2. 接続確認のための簡単なクエリを実行
+3. Neo4j データベースのノード数をカウント
+4. ポート 6333 で Qdrant に接続
+5. Qdrant サービスの正常性を検証
+6. 利用可能なコレクションを一覧表示
+7. document_chunks コレクションの情報を表示
 
-## Troubleshooting
+## トラブルシューティング
 
-If connection tests fail:
+接続テストが失敗した場合：
 
-1. Verify that both Neo4j and Qdrant containers are running:
+1. Neo4j と Qdrant の両コンテナが実行中か確認：
    ```bash
    docker ps | grep graphrag
    ```
 
-2. Check if the ports are correctly mapped in docker-compose.yml:
+2. docker-compose.yml でポートが正しくマッピングされているか確認：
    ```bash
    cat docker-compose.yml | grep -E "7474|7687|6333"
    ```
 
-3. Verify that the .env file has the correct connection information:
+3. .env ファイルに正しい接続情報があるか確認：
    ```bash
    cat .env | grep -E "NEO4J|QDRANT"
    ```
 
-4. Ensure that no other service is using the required ports:
+4. 必要なポートを他のサービスが使用していないか確認：
    ```bash
    lsof -i :7474 -i :7687 -i :6333
-   ``` 
+   ```

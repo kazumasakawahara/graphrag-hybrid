@@ -1,61 +1,61 @@
-# Database Connection Information
+# データベース接続情報
 
-This document summarizes the connection parameters and database content for the GraphRAG system.
+このドキュメントは、GraphRAG システムの接続パラメータとデータベース内容をまとめたものです。
 
-## Connection Parameters
+## 接続パラメータ
 
 ### Neo4j
 
-- **HTTP Port**: 7474 (Browser interface)
-- **Bolt Port**: 7687 (Application connections)
-- **Authentication**: Username: `neo4j`, Password: `password`
-- **Connection URI**: `bolt://localhost:7687`
-- **Browser Access**: Open http://localhost:7474 in your web browser
+- **HTTP ポート**: 7474（ブラウザインターフェース）
+- **Bolt ポート**: 7687（アプリケーション接続）
+- **認証**: ユーザー名: `neo4j`、パスワード: `password`
+- **接続 URI**: `bolt://localhost:7687`
+- **ブラウザアクセス**: Web ブラウザで http://localhost:7474 を開く
 
 ### Qdrant
 
-- **HTTP Port**: 6333
-- **Collection Name**: `document_chunks`
-- **Authentication**: None (default)
-- **Connection URL**: `http://localhost:6333`
-- **Dashboard**: Open http://localhost:6333/dashboard in your web browser
+- **HTTP ポート**: 6333
+- **コレクション名**: `document_chunks`
+- **認証**: なし（デフォルト）
+- **接続 URL**: `http://localhost:6333`
+- **ダッシュボード**: Web ブラウザで http://localhost:6333/dashboard を開く
 
-## Database Content
+## データベースコンテンツ
 
-### Neo4j Content
+### Neo4j コンテンツ
 
-- **Total Documents**: 162
-- **Total Chunks**: 20,112
-- **Relationship Types**:
-  - `HAS_CHUNK`: 20,112 relationships (connects documents to their chunks)
-  - `RELATED_TO`: 1,310 relationships (connects related documents)
+- **ドキュメント総数**: 162
+- **チャンク総数**: 20,112
+- **リレーションシップタイプ**:
+  - `HAS_CHUNK`: 20,112 件（ドキュメントとチャンクの接続）
+  - `RELATED_TO`: 1,310 件（関連ドキュメントの接続）
 
-### Qdrant Content
+### Qdrant コンテンツ
 
-- **Collection**: `document_chunks`
-- **Vector Count**: 20,112
-- **Vector Dimension**: 384
-- **Distance Metric**: Cosine
-- **Indexed Fields**:
-  - `doc_id`: Keyword type (20,112 points)
-  - `category`: Keyword type (20,112 points)
+- **コレクション**: `document_chunks`
+- **ベクトル数**: 20,112
+- **ベクトル次元**: 384
+- **距離メトリクス**: Cosine
+- **インデックス付きフィールド**:
+  - `doc_id`: Keyword タイプ（20,112 ポイント）
+  - `category`: Keyword タイプ（20,112 ポイント）
 
-## Alignment Status
+## 整合性ステータス
 
-✅ **Perfect Alignment Confirmed**: All 162 document IDs present in Neo4j have corresponding vectors in Qdrant, and all document IDs in Qdrant exist in Neo4j.
+✅ **完全な整合性を確認**: Neo4j に存在する 162 のドキュメント ID すべてが Qdrant に対応するベクトルを持ち、Qdrant のすべてのドキュメント ID が Neo4j に存在します。
 
-## Search Functionality
+## 検索機能
 
-Semantic search is working correctly, with proper alignment between Neo4j documents and Qdrant vectors. A test query for "how to connect to Neo4j" returned relevant results from the Troubleshooting Guide and Neo4j Implementation Guide.
+セマンティック検索は正常に動作しており、Neo4j のドキュメントと Qdrant のベクトルが適切に整合しています。「how to connect to Neo4j」のテストクエリでは、トラブルシューティングガイドと Neo4j 実装ガイドから関連する結果が返されました。
 
-## Verification Commands
+## 検証コマンド
 
-To verify the database connections:
+データベース接続を検証するには：
 
 ```bash
-# Run the connection test script
+# 接続テストスクリプトを実行
 python test_db_connection/test_connections.py
 
-# Run the detailed database checker
+# 詳細なデータベースチェッカーを実行
 python check_databases.py
-``` 
+```

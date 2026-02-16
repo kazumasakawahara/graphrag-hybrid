@@ -1,19 +1,19 @@
-# GraphRAG Query Implementation
+# GraphRAG クエリ実装
 
-This guide explains how to implement querying functionality in your MCP tools to interact with the GraphRAG system.
+このガイドでは、GraphRAG システムと連携する MCP ツールにクエリ機能を実装する方法を説明します。
 
-## Query Flow
+## クエリフロー
 
-The query process involves several steps:
+クエリプロセスは以下のステップで構成されます：
 
-1. Generate embeddings for the query text
-2. Search Qdrant for similar vectors
-3. Retrieve related documents from Neo4j
-4. Combine and rank results
+1. クエリテキストのエンベディングを生成
+2. Qdrant で類似ベクトルを検索
+3. Neo4j から関連ドキュメントを取得
+4. 結果を統合してランキング
 
-## Implementation
+## 実装
 
-### 1. Query Class
+### 1. クエリクラス
 
 ```python
 from typing import List, Dict, Any
@@ -24,29 +24,29 @@ class GraphRAGQuery:
     def __init__(self, manager, model_name="all-MiniLM-L6-v2"):
         self.manager = manager
         self.embedding_model = SentenceTransformer(model_name)
-        
+
     def generate_embedding(self, text: str) -> np.ndarray:
-        """Generate embedding vector for query text."""
+        """クエリテキストのエンベディングベクトルを生成"""
         return self.embedding_model.encode(text)
-        
+
     async def search(self, query: str, limit: int = 5) -> List[Dict[Any, Any]]:
-        """Perform hybrid search using both Qdrant and Neo4j."""
-        # Generate query embedding
+        """Qdrant と Neo4j の両方を使用したハイブリッド検索を実行"""
+        # クエリエンベディングを生成
         query_vector = self.generate_embedding(query)
-        
-        # Search Qdrant
+
+        # Qdrant を検索
         qdrant_results = self.search_qdrant(query_vector, limit)
-        
-        # Get related documents from Neo4j
+
+        # Neo4j から関連ドキュメントを取得
         neo4j_results = self.expand_context(qdrant_results)
-        
-        # Combine and rank results
+
+        # 結果を統合してランキング
         final_results = self.rank_results(query, qdrant_results, neo4j_results)
-        
+
         return final_results
-        
+
     def search_qdrant(self, query_vector: np.ndarray, limit: int) -> List[Dict[Any, Any]]:
-        """Search Qdrant for similar vectors."""
+        """Qdrant で類似ベクトルを検索"""
         try:
             results = self.manager.qdrant.client.search(
                 collection_name=self.manager.collection_name,
@@ -64,11 +64,11 @@ class GraphRAGQuery:
         except Exception as e:
             print(f"Qdrant search error: {str(e)}")
             return []
-            
+
     def expand_context(self, qdrant_results: List[Dict[Any, Any]]) -> List[Dict[Any, Any]]:
-        """Get related documents from Neo4j."""
+        """Neo4j から関連ドキュメントを取得"""
         doc_ids = [result['doc_id'] for result in qdrant_results]
-        
+
         try:
             with self.manager.neo4j.driver.session() as session:
                 query = """
@@ -89,15 +89,15 @@ class GraphRAGQuery:
         except Exception as e:
             print(f"Neo4j query error: {str(e)}")
             return []
-            
-    def rank_results(self, query: str, 
-                    qdrant_results: List[Dict[Any, Any]], 
+
+    def rank_results(self, query: str,
+                    qdrant_results: List[Dict[Any, Any]],
                     neo4j_results: List[Dict[Any, Any]]) -> List[Dict[Any, Any]]:
-        """Combine and rank results from both databases."""
-        # Create a mapping of doc_ids to Neo4j results
+        """両データベースの結果を統合してランキング"""
+        # doc_id から Neo4j 結果へのマッピングを作成
         neo4j_map = {doc['doc_id']: doc for doc in neo4j_results}
-        
-        # Combine results
+
+        # 結果を統合
         ranked_results = []
         for qdrant_hit in qdrant_results:
             doc_id = qdrant_hit['doc_id']
@@ -111,13 +111,13 @@ class GraphRAGQuery:
                     'category': qdrant_hit['category'],
                     'related_docs': neo4j_doc['related_docs']
                 })
-                
+
         return ranked_results
 ```
 
-### 2. MCP Tool Implementation
+### 2. MCP ツール実装
 
-Here's how to implement the GraphRAG functionality as an MCP tool:
+GraphRAG 機能を MCP ツールとして実装する方法：
 
 ```python
 from typing import Optional, Dict, Any
@@ -126,7 +126,7 @@ from mcp.tools import BaseTool
 class GraphRAGTool(BaseTool):
     name = "GraphRAG"
     description = "Search through documents using hybrid Neo4j and Qdrant search"
-    
+
     def __init__(self):
         super().__init__()
         self.manager = GraphRAGManager(
@@ -138,18 +138,18 @@ class GraphRAGTool(BaseTool):
             collection_name=QDRANT_COLLECTION
         )
         self.query_engine = GraphRAGQuery(self.manager)
-        
-    async def execute(self, query: str, 
+
+    async def execute(self, query: str,
                      limit: Optional[int] = 5,
                      category: Optional[str] = None) -> Dict[str, Any]:
-        """Execute a search query."""
+        """検索クエリを実行"""
         try:
             results = await self.query_engine.search(query, limit)
-            
-            # Filter by category if specified
+
+            # カテゴリが指定されている場合はフィルタリング
             if category:
                 results = [r for r in results if r['category'] == category]
-                
+
             return {
                 'status': 'success',
                 'results': results,
@@ -160,28 +160,28 @@ class GraphRAGTool(BaseTool):
                 'status': 'error',
                 'error': str(e)
             }
-            
+
     def cleanup(self):
-        """Clean up database connections."""
+        """データベース接続をクリーンアップ"""
         self.manager.close()
 ```
 
-## Usage Example
+## 使用例
 
-Here's how to use the GraphRAG tool in your MCP environment:
+MCP 環境で GraphRAG ツールを使用する方法：
 
 ```python
-# Initialize the tool
+# ツールを初期化
 graphrag_tool = GraphRAGTool()
 
-# Execute a search
+# 検索を実行
 results = await graphrag_tool.execute(
     query="How to configure Neo4j authentication?",
     limit=5,
     category="setup"
 )
 
-# Process results
+# 結果を処理
 if results['status'] == 'success':
     for doc in results['results']:
         print(f"Document: {doc['title']}")
@@ -191,19 +191,19 @@ if results['status'] == 'success':
 else:
     print(f"Error: {results['error']}")
 
-# Clean up
+# クリーンアップ
 graphrag_tool.cleanup()
 ```
 
-## Query Parameters
+## クエリパラメータ
 
-- `query` (str): The search query text
-- `limit` (int, optional): Maximum number of results (default: 5)
-- `category` (str, optional): Filter results by category
+- `query` (str): 検索クエリテキスト
+- `limit` (int, オプション): 最大結果数（デフォルト: 5）
+- `category` (str, オプション): カテゴリによる結果フィルタリング
 
-## Response Format
+## レスポンスフォーマット
 
-The search results are returned in the following format:
+検索結果は以下のフォーマットで返されます：
 
 ```python
 {
@@ -228,6 +228,6 @@ The search results are returned in the following format:
 }
 ```
 
-## Error Handling
+## エラーハンドリング
 
-See [Error Handling](error_handling.md) for detailed information about handling query errors and edge cases. 
+クエリエラーとエッジケースの処理について詳しくは、[エラーハンドリング](error_handling.md)を参照してください。

@@ -1,0 +1,268 @@
+"""
+GraphRAG Hybrid MCP Server
+Neo4j + Qdrant ハイブリッド検索システムのMCPサーバー
+
+Usage:
+    python server.py          # STDIO mode (Claude Desktop用)
+    python server.py --http   # HTTP mode (開発・テスト用)
+"""
+
+import sys
+import os
+import json
+import logging
+from typing import Optional
+
+# プロジェクトルートをパスに追加
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from fastmcp import FastMCP
+from dotenv import load_dotenv
+
+# .envを読み込み
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
+
+# ログ設定
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# === FastMCPサーバー作成 ===
+mcp = FastMCP(
+    "GraphRAG Hybrid Search",
+    instructions=(
+        "Neo4j グラフDB + Qdrant ベクトルDB のハイブリッド検索システムです。\n"
+        "ドキュメントのセマンティック検索、カテゴリ検索、ハイブリッド検索が可能です。\n"
+        "検索結果のコンテキスト拡張や関連ドキュメントの提案も行えます。"
+    ),
+)
+
+# === GraphRAGツールのシングルトン管理 ===
+_tool_instance = None
+
+
+def _get_tool():
+    """GraphRAGMCPToolのシングルトンインスタンスを取得"""
+    global _tool_instance
+    if _tool_instance is None:
+        logger.info("Initializing GraphRAG MCP Tool...")
+        from src.graphrag_mcp_tool import GraphRAGMCPTool
+        _tool_instance = GraphRAGMCPTool()
+        logger.info("GraphRAG MCP Tool initialized successfully")
+    return _tool_instance
+
+
+# === MCPツール定義 ===
+
+@mcp.tool
+def search(
+    query: str,
+    limit: int = 5,
+    category: Optional[str] = None,
+    search_type: str = "hybrid"
+) -> str:
+    """ドキュメントをハイブリッド検索します。
+
+    Neo4j（グラフ構造）とQdrant（ベクトル類似度）を組み合わせた
+    高精度なドキュメント検索を行います。
+
+    Args:
+        query: 検索クエリテキスト
+        limit: 返す結果の最大数（デフォルト: 5）
+        category: カテゴリでフィルタ（任意）
+        search_type: 検索タイプ - "hybrid"（推奨）, "semantic", "category"
+
+    Returns:
+        検索結果のJSON文字列
+    """
+    tool = _get_tool()
+    result = tool.search(
+        query=query,
+        limit=limit,
+        category=category,
+        search_type=search_type
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+def get_document(doc_id: str) -> str:
+    """ドキュメントIDを指定して完全なドキュメントを取得します。
+
+    Args:
+        doc_id: 取得するドキュメントのID
+
+    Returns:
+        ドキュメント情報とチャンクのJSON文字列
+    """
+    tool = _get_tool()
+    result = tool.get_document(doc_id)
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+def expand_context(chunk_id: str, context_size: int = 2) -> str:
+    """特定チャンクの前後のコンテキストを拡張取得します。
+
+    検索結果の一部をより詳しく読みたい場合に使用します。
+
+    Args:
+        chunk_id: コンテキストを拡張するチャンクのID
+        context_size: 前後に取得するチャンク数（デフォルト: 2）
+
+    Returns:
+        拡張コンテキストのJSON文字列
+    """
+    tool = _get_tool()
+    result = tool.expand_context(chunk_id=chunk_id, context_size=context_size)
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+def get_categories() -> str:
+    """登録されている全ドキュメントカテゴリを取得します。
+
+    Returns:
+        カテゴリ一覧のJSON文字列
+    """
+    tool = _get_tool()
+    result = tool.get_categories()
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+def get_statistics() -> str:
+    """システムの統計情報を取得します。
+
+    Neo4jとQdrantの両方のデータベースの状態を表示します。
+
+    Returns:
+        統計情報のJSON文字列
+    """
+    tool = _get_tool()
+    result = tool.get_statistics()
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+def ingest_document(file_path: str) -> str:
+    """新しいドキュメントをシステムに取り込みます。
+
+    Markdownファイルを読み込み、チャンク分割してNeo4jとQdrantの
+    両方に登録します。
+
+    Args:
+        file_path: 取り込むドキュメントのファイルパス
+
+    Returns:
+        取り込み結果のJSON文字列
+    """
+    try:
+        # ファイル存在確認
+        if not os.path.exists(file_path):
+            return json.dumps({"error": f"ファイルが見つかりません: {file_path}"}, ensure_ascii=False)
+
+        tool = _get_tool()
+
+        # ファイル読み込み
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        filename = os.path.basename(file_path)
+        
+        # メタデータ抽出
+        title = filename.replace('.md', '').replace('_', ' ').replace('-', ' ').title()
+        category = "imported"
+
+        # ヘッダーからタイトル抽出を試行
+        for line in content.split('\n'):
+            line = line.strip()
+            if line.startswith('# '):
+                title = line[2:].strip()
+                break
+
+        # チャンク分割
+        from src.processors.embedding_processor import EmbeddingProcessor
+        chunk_size = int(os.getenv("CHUNK_SIZE", "600"))
+        chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
+
+        chunks = []
+        words = content.split()
+        position = 0
+        step = max(1, chunk_size - chunk_overlap)
+
+        for i in range(0, len(words), step):
+            chunk_text = ' '.join(words[i:i + chunk_size])
+            if chunk_text.strip():
+                import hashlib
+                chunk_id = int(hashlib.md5(f"{filename}_{position}".encode()).hexdigest()[:8], 16)
+                chunks.append({
+                    'id': chunk_id,
+                    'text': chunk_text,
+                    'doc_id': filename,
+                    'position': position,
+                    'metadata': {
+                        'title': title,
+                        'category': category,
+                        'source': file_path
+                    }
+                })
+                position += 1
+
+        if not chunks:
+            return json.dumps({"error": "チャンクの生成に失敗しました"}, ensure_ascii=False)
+
+        # Neo4jに登録
+        tool.neo4j_manager.import_document(
+            doc_id=filename,
+            title=title,
+            category=category,
+            chunks=chunks,
+            metadata={'source': file_path}
+        )
+
+        # Qdrantに登録
+        tool.qdrant_manager.import_chunks(chunks)
+
+        result = {
+            "status": "success",
+            "document": {
+                "id": filename,
+                "title": title,
+                "category": category,
+                "chunk_count": len(chunks)
+            }
+        }
+        return json.dumps(result, ensure_ascii=False, indent=2)
+
+    except Exception as e:
+        logger.error(f"Error ingesting document: {str(e)}")
+        return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+
+# === MCPリソース定義 ===
+
+@mcp.resource("graphrag://status")
+def system_status() -> str:
+    """システムのステータスを返すリソース"""
+    try:
+        tool = _get_tool()
+        stats = tool.get_statistics()
+        status = {
+            "status": "running",
+            "neo4j": stats.get("neo4j", {}),
+            "qdrant": stats.get("qdrant", {}),
+        }
+        return json.dumps(status, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
+
+
+# === エントリーポイント ===
+
+if __name__ == "__main__":
+    if "--http" in sys.argv:
+        # HTTP mode（開発・テスト用）
+        mcp.run(transport="http", host="0.0.0.0", port=8100)
+    else:
+        # STDIO mode（Claude Desktop用）
+        mcp.run()

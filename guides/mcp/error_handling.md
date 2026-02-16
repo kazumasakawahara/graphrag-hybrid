@@ -1,12 +1,13 @@
-# GraphRAG Error Handling
+# GraphRAG エラーハンドリング
 
-This guide covers common errors you might encounter when integrating with the GraphRAG system and how to handle them effectively.
+このガイドでは、GraphRAG システムとの統合時に発生する可能性のある一般的なエラーとその効果的な対処方法について説明します。
 
-## Connection Errors
+## 接続エラー
 
-### Neo4j Connection Issues
+### Neo4j 接続の問題
 
-1. **Connection Refused**
+1. **接続拒否**
+
 ```python
 from neo4j.exceptions import ServiceUnavailable
 
@@ -22,7 +23,8 @@ except ServiceUnavailable as e:
         print(f"Neo4j connection error: {str(e)}")
 ```
 
-2. **Authentication Failed**
+2. **認証失敗**
+
 ```python
 from neo4j.exceptions import AuthError
 
@@ -33,9 +35,10 @@ except AuthError:
     print("Invalid Neo4j credentials")
 ```
 
-### Qdrant Connection Issues
+### Qdrant 接続の問題
 
-1. **Connection Timeout**
+1. **接続タイムアウト**
+
 ```python
 from qdrant_client.http.exceptions import UnexpectedResponse
 
@@ -51,7 +54,8 @@ except UnexpectedResponse as e:
         print(f"Qdrant error: {str(e)}")
 ```
 
-2. **Collection Not Found**
+2. **コレクションが見つからない**
+
 ```python
 try:
     collection_info = client.get_collection(collection_name)
@@ -64,11 +68,12 @@ except UnexpectedResponse as e:
         )
 ```
 
-## Query Errors
+## クエリエラー
 
-### Embedding Generation
+### エンベディング生成
 
-1. **Model Loading Error**
+1. **モデル読み込みエラー**
+
 ```python
 from sentence_transformers import SentenceTransformer
 
@@ -77,12 +82,13 @@ try:
 except OSError as e:
     if "not found" in str(e):
         print(f"Model '{model_name}' not found. Downloading...")
-        # Implement model download logic
+        # モデルダウンロードロジックを実装
     else:
         print(f"Error loading model: {str(e)}")
 ```
 
-2. **Input Text Error**
+2. **入力テキストエラー**
+
 ```python
 def safe_encode(text: str) -> np.ndarray:
     try:
@@ -96,21 +102,22 @@ def safe_encode(text: str) -> np.ndarray:
         return None
 ```
 
-### Qdrant Search
+### Qdrant 検索
 
-1. **Vector Size Mismatch**
+1. **ベクトルサイズの不一致**
+
 ```python
 def safe_search(query_vector: np.ndarray) -> List[Dict[Any, Any]]:
     try:
         collection_info = client.get_collection(collection_name)
         vector_size = collection_info.config.params.vectors.size
-        
+
         if len(query_vector) != vector_size:
             raise ValueError(
                 f"Query vector size {len(query_vector)} does not match "
                 f"collection vector size {vector_size}"
             )
-            
+
         return client.search(
             collection_name=collection_name,
             query_vector=query_vector.tolist(),
@@ -121,10 +128,11 @@ def safe_search(query_vector: np.ndarray) -> List[Dict[Any, Any]]:
         return []
 ```
 
-2. **Version Compatibility**
+2. **バージョン互換性**
+
 ```python
 def get_vectors_count(collection_info) -> int:
-    """Handle different Qdrant client versions."""
+    """異なる Qdrant クライアントバージョンに対応"""
     try:
         return collection_info.vectors_count
     except AttributeError:
@@ -134,9 +142,10 @@ def get_vectors_count(collection_info) -> int:
             return 0
 ```
 
-### Neo4j Queries
+### Neo4j クエリ
 
-1. **Cypher Syntax Error**
+1. **Cypher 構文エラー**
+
 ```python
 from neo4j.exceptions import CypherSyntaxError
 
@@ -152,28 +161,29 @@ def safe_query(session, query: str, params: Dict) -> List[Dict]:
         return []
 ```
 
-2. **Missing Properties**
+2. **プロパティの欠落**
+
 ```python
 def safe_get_property(node: Dict, prop: str, default: Any = None) -> Any:
-    """Safely get node property with default value."""
+    """デフォルト値付きでノードプロパティを安全に取得"""
     try:
         return node.get(prop, default)
     except Exception:
         return default
 ```
 
-## Error Recovery
+## エラーリカバリー
 
-### Connection Recovery
+### 接続の復旧
 
 ```python
 class ConnectionManager:
     def __init__(self, max_retries: int = 3, retry_delay: float = 1.0):
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        
+
     async def with_retry(self, func, *args, **kwargs):
-        """Execute function with retry logic."""
+        """リトライロジック付きで関数を実行"""
         for attempt in range(self.max_retries):
             try:
                 return await func(*args, **kwargs)
@@ -184,15 +194,15 @@ class ConnectionManager:
                 await asyncio.sleep(self.retry_delay)
 ```
 
-### Graceful Degradation
+### グレースフルデグラデーション
 
 ```python
 class GraphRAGQuery:
     async def fallback_search(self, query: str) -> List[Dict[Any, Any]]:
-        """Fallback to Neo4j-only search if Qdrant fails."""
+        """Qdrant が失敗した場合に Neo4j のみの検索にフォールバック"""
         try:
             with self.manager.neo4j.driver.session() as session:
-                # Fallback to text-based search in Neo4j
+                # Neo4j でのテキストベース検索にフォールバック
                 result = session.run("""
                     MATCH (d:Document)
                     WHERE d.content CONTAINS $query
@@ -207,9 +217,9 @@ class GraphRAGQuery:
             return []
 ```
 
-## Monitoring and Logging
+## モニタリングとロギング
 
-### Error Logging
+### エラーロギング
 
 ```python
 import logging
@@ -223,9 +233,9 @@ class ErrorLogger:
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         self.logger = logging.getLogger("GraphRAG")
-        
+
     def log_error(self, error: Exception, context: Dict[str, Any] = None):
-        """Log error with context information."""
+        """コンテキスト情報付きでエラーを記録"""
         error_info = {
             'timestamp': datetime.utcnow().isoformat(),
             'error_type': type(error).__name__,
@@ -235,22 +245,22 @@ class ErrorLogger:
         self.logger.error(error_info)
 ```
 
-### Health Checks
+### ヘルスチェック
 
 ```python
 class HealthCheck:
     def __init__(self, manager):
         self.manager = manager
-        
+
     async def check_health(self) -> Dict[str, Any]:
-        """Check health of all components."""
+        """すべてのコンポーネントの正常性をチェック"""
         status = {
             'neo4j': {'status': 'unknown'},
             'qdrant': {'status': 'unknown'},
             'timestamp': datetime.utcnow().isoformat()
         }
-        
-        # Check Neo4j
+
+        # Neo4j をチェック
         try:
             with self.manager.neo4j.driver.session() as session:
                 result = session.run("RETURN 1")
@@ -264,8 +274,8 @@ class HealthCheck:
                 'status': 'unhealthy',
                 'error': str(e)
             }
-            
-        # Check Qdrant
+
+        # Qdrant をチェック
         try:
             collection_info = self.manager.qdrant.client.get_collection(
                 self.manager.collection_name
@@ -279,19 +289,19 @@ class HealthCheck:
                 'status': 'unhealthy',
                 'error': str(e)
             }
-            
+
         return status
 ```
 
-## Best Practices
+## ベストプラクティス
 
-1. Always implement proper error handling for all database operations
-2. Use retry logic for transient failures
-3. Implement graceful degradation when services are unavailable
-4. Log errors with sufficient context for debugging
-5. Regularly check system health
-6. Handle version compatibility issues
-7. Validate input data before processing
-8. Clean up resources properly
-9. Monitor system performance
-10. Keep error messages user-friendly 
+1. すべてのデータベース操作に適切なエラーハンドリングを実装する
+2. 一時的な障害にはリトライロジックを使用する
+3. サービスが利用不可の場合はグレースフルデグラデーションを実装する
+4. デバッグに十分なコンテキスト付きでエラーをログに記録する
+5. システムの正常性を定期的にチェックする
+6. バージョン互換性の問題に対応する
+7. 処理前に入力データを検証する
+8. リソースを適切にクリーンアップする
+9. システムパフォーマンスを監視する
+10. エラーメッセージをユーザーフレンドリーに保つ

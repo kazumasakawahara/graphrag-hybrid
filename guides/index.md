@@ -1,35 +1,35 @@
-# GraphRAG Documentation Guides
+# GraphRAG ドキュメントガイド
 
-This directory contains comprehensive guides for understanding and working with the GraphRAG system.
+このディレクトリには、GraphRAG システムの理解と使用のための包括的なガイドが含まれています。
 
-## Available Guides
+## 利用可能なガイド
 
-- **[MCP System Documentation](mcp/index.md)**: Integration guide for Model Context Protocol systems
-- **[Integration Guide](integration_guide.md)**: How to integrate GraphRAG into your applications
-- **[Database Query Guide](query_guide.md)**: Guide to querying both Neo4j and Qdrant databases
-- **[Database Setup Guide](database_setup.md)**: Instructions for setting up Neo4j and Qdrant
+- **[MCP システムドキュメント](mcp/index.md)**: Model Context Protocol システムとの連携ガイド
+- **[連携ガイド](integration_guide.md)**: GraphRAG をアプリケーションに統合する方法
+- **[データベースクエリガイド](query_guide.md)**: Neo4j と Qdrant 両データベースのクエリガイド
+- **[データベースセットアップガイド](database_setup.md)**: Neo4j と Qdrant のセットアップ手順
 
-## Testing Documentation
+## テストドキュメント
 
-- **[Connection Testing](../test_db_connection/index.md)**: Details of database connection testing
+- **[接続テスト](../test_db_connection/index.md)**: データベース接続テストの詳細
 
-## Key Topics
+## 主要トピック
 
-The guides cover:
+ガイドでは以下をカバーしています：
 
-- **Database Configuration**: 
-  - Neo4j: HTTP on port 7474, Bolt on port 7687
-  - Qdrant: HTTP on port 6333
-- **Query Strategies**: How to leverage both graph and vector search
-- **Integration Patterns**: Patterns for integrating with various applications
-- **Troubleshooting**: Common issues and their solutions
+- **データベース設定**:
+  - Neo4j: HTTP はポート 7474、Bolt はポート 7687
+  - Qdrant: HTTP はポート 6333
+- **クエリ戦略**: グラフ検索とベクトル検索の両方を活用する方法
+- **連携パターン**: 各種アプリケーションとの統合パターン
+- **トラブルシューティング**: よくある問題とその解決方法
 
-## Reading Order
+## 推奨読書順序
 
-For new users, we recommend the following reading order:
+初めてのユーザーには、以下の順序で読むことをお勧めします：
 
-1. Database Setup Guide
-2. Connection Testing
-3. Database Query Guide
-4. Integration Guide
-5. MCP System Documentation 
+1. データベースセットアップガイド
+2. 接続テスト
+3. データベースクエリガイド
+4. 連携ガイド
+5. MCP システムドキュメント

@@ -1,38 +1,38 @@
-# Neo4j and Qdrant Database Setup Guide
+# Neo4j と Qdrant データベースセットアップガイド
 
-This guide provides instructions for setting up and configuring Neo4j (graph database) and Qdrant (vector database) for use with the GraphRAG MCP server.
+このガイドでは、GraphRAG MCP サーバーで使用する Neo4j（グラフデータベース）と Qdrant（ベクトルデータベース）のセットアップと設定方法について説明します。
 
-## Table of Contents
+## 目次
 
-- [Neo4j and Qdrant Database Setup Guide](#neo4j-and-qdrant-database-setup-guide)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [Docker Compose Setup](#docker-compose-setup)
-  - [Neo4j Setup](#neo4j-setup)
-    - [Manual Installation](#manual-installation)
-    - [Configuration](#configuration)
-    - [Database Schema Design](#database-schema-design)
-    - [Basic Operations](#basic-operations)
-  - [Qdrant Setup](#qdrant-setup)
-    - [Manual Installation](#manual-installation-1)
-    - [Configuration](#configuration-1)
-    - [Collection Setup](#collection-setup)
-    - [Basic Operations](#basic-operations-1)
-  - [Security Considerations](#security-considerations)
-  - [Testing the Setup](#testing-the-setup)
-  - [Troubleshooting](#troubleshooting)
+- [Neo4j と Qdrant データベースセットアップガイド](#neo4j-と-qdrant-データベースセットアップガイド)
+  - [目次](#目次)
+  - [概要](#概要)
+  - [Docker Compose セットアップ](#docker-compose-セットアップ)
+  - [Neo4j セットアップ](#neo4j-セットアップ)
+    - [手動インストール](#手動インストール)
+    - [設定](#設定)
+    - [データベーススキーマ設計](#データベーススキーマ設計)
+    - [基本操作](#基本操作)
+  - [Qdrant セットアップ](#qdrant-セットアップ)
+    - [手動インストール](#手動インストール-1)
+    - [設定](#設定-1)
+    - [コレクションセットアップ](#コレクションセットアップ)
+    - [基本操作](#基本操作-1)
+  - [セキュリティに関する考慮事項](#セキュリティに関する考慮事項)
+  - [セットアップのテスト](#セットアップのテスト)
+  - [トラブルシューティング](#トラブルシューティング)
 
-## Overview
+## 概要
 
-This project uses a hybrid approach combining:
-- **Neo4j**: A graph database for storing structured relationships between entities
-- **Qdrant**: A vector database for semantic similarity search
+このプロジェクトでは以下を組み合わせたハイブリッドアプローチを使用します：
+- **Neo4j**: エンティティ間の構造化された関係を保存するグラフデータベース
+- **Qdrant**: セマンティック類似検索のためのベクトルデータベース
 
-Both databases should be set up as separate services that the MCP server will connect to.
+両データベースは MCP サーバーが接続する個別のサービスとしてセットアップする必要があります。
 
-## Docker Compose Setup
+## Docker Compose セットアップ
 
-The easiest way to set up both databases for development is using Docker Compose. Create a `docker-compose.yml` file:
+開発用に両データベースをセットアップする最も簡単な方法は Docker Compose を使用することです。`docker-compose.yml` ファイルを作成してください：
 
 ```yaml
 version: '3'
@@ -42,8 +42,8 @@ services:
     image: neo4j:5.13.0
     container_name: graphrag_neo4j
     ports:
-      - "7474:7474"  
-      - "7687:7687"  
+      - "7474:7474"
+      - "7687:7687"
     environment:
       - NEO4J_AUTH=neo4j/password
       - NEO4J_apoc_export_file_enabled=true
@@ -62,7 +62,7 @@ services:
     image: qdrant/qdrant:v1.5.1
     container_name: graphrag_qdrant
     ports:
-      - "6335:6333"  # HTTP (mapped to non-standard port)
+      - "6335:6333"  # HTTP（非標準ポートにマッピング）
       - "6334:6334"  # gRPC
     volumes:
       - qdrant_data:/qdrant/storage
@@ -83,68 +83,68 @@ networks:
     driver: bridge
 ```
 
-To start the services:
+サービスを起動するには：
 
 ```bash
 docker-compose up -d
 ```
 
-To stop the services:
+サービスを停止するには：
 
 ```bash
 docker-compose down
 ```
 
-## Neo4j Setup
+## Neo4j セットアップ
 
-### Manual Installation
+### 手動インストール
 
-If you prefer not to use Docker, you can install Neo4j directly:
+Docker を使用しない場合は、Neo4j を直接インストールできます：
 
-1. Download Neo4j Community Edition from the [official website](https://neo4j.com/download/)
-2. Install according to your operating system's instructions
-3. Start the Neo4j server and set an initial password
-4. Configure the server to use ports 7474 (HTTP) and 7687 (Bolt)
+1. [公式ウェブサイト](https://neo4j.com/download/)から Neo4j Community Edition をダウンロード
+2. お使いの OS の手順に従ってインストール
+3. Neo4j サーバーを起動し、初期パスワードを設定
+4. ポート 7474（HTTP）と 7687（Bolt）を使用するようにサーバーを設定
 
-### Configuration
+### 設定
 
-Key configuration parameters for Neo4j:
+Neo4j の主要な設定パラメータ：
 
-- **Connection URL**: `bolt://localhost:7687`
-- **Default credentials**: username `neo4j`, password `password` (change in production)
-- **Web interface**: Available at http://localhost:7474 after startup
+- **接続 URL**: `bolt://localhost:7687`
+- **デフォルト認証情報**: ユーザー名 `neo4j`、パスワード `password`（本番環境では変更してください）
+- **Web インターフェース**: 起動後 http://localhost:7474 でアクセス可能
 
-### Database Schema Design
+### データベーススキーマ設計
 
-For this GraphRAG project, we'll use the following schema:
+この GraphRAG プロジェクトでは、以下のスキーマを使用します：
 
 ```cypher
-// Node labels
+// ノードラベル
 CREATE CONSTRAINT IF NOT EXISTS FOR (c:Content) REQUIRE c.id IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (t:Topic) REQUIRE t.name IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (e:Entity) REQUIRE e.name IS UNIQUE;
 
-// Indexes for faster lookups
+// 高速検索用インデックス
 CREATE INDEX IF NOT EXISTS FOR (c:Content) ON (c.text);
 CREATE INDEX IF NOT EXISTS FOR (d:Document) ON (d.title);
 CREATE INDEX IF NOT EXISTS FOR (d:Document) ON (d.category);
 CREATE INDEX IF NOT EXISTS FOR (d:Document) ON (d.path);
 ```
 
-### Basic Operations
+### 基本操作
 
-Connect to Neo4j using the Cypher shell or web interface and try these commands:
+Cypher シェルまたは Web インターフェースを使用して Neo4j に接続し、以下のコマンドを試してください：
 
 ```cypher
-// Create a document node
+// ドキュメントノードを作成
 CREATE (d:Document {id: "doc1", title: "GraphRAG Architecture", path: "/docs/architecture.md"})
 
-// Create content chunks for the document
+// ドキュメントのコンテンツチャンクを作成
 CREATE (c1:Content {id: "chunk1", text: "This document describes the GraphRAG architecture combining Neo4j and Qdrant."})
 CREATE (c2:Content {id: "chunk2", text: "The system uses a hybrid approach with vector similarity and graph relationships."})
 
-// Create relationships
+// リレーションシップを作成
 MATCH (d:Document {id: "doc1"})
 MATCH (c1:Content {id: "chunk1"})
 MATCH (c2:Content {id: "chunk2"})
@@ -152,63 +152,63 @@ CREATE (d)-[:CONTAINS]->(c1)
 CREATE (d)-[:CONTAINS]->(c2)
 CREATE (c1)-[:NEXT]->(c2)
 
-// Query related content
+// 関連コンテンツをクエリ
 MATCH (c:Content {id: "chunk1"})-[r:NEXT]->(related)
 RETURN c.text AS source, related.text AS related_content
 ```
 
-## Qdrant Setup
+## Qdrant セットアップ
 
-### Manual Installation
+### 手動インストール
 
-If not using Docker:
+Docker を使用しない場合：
 
-1. Download the latest Qdrant release from [GitHub](https://github.com/qdrant/qdrant/releases)
-2. Extract and run according to your OS instructions
-3. Configure the server to use ports 6333 for HTTP and 6334 for gRPC
-4. Verify installation by accessing the API endpoint
+1. [GitHub](https://github.com/qdrant/qdrant/releases) から最新の Qdrant リリースをダウンロード
+2. お使いの OS の手順に従って展開・実行
+3. HTTP 用にポート 6333、gRPC 用にポート 6334 を使用するようにサーバーを設定
+4. API エンドポイントにアクセスしてインストールを確認
 
-### Configuration
+### 設定
 
-Key configuration for Qdrant:
+Qdrant の主要な設定：
 
 - **HTTP URL**: http://localhost:6333
 - **gRPC URL**: http://localhost:6334
-- **Web dashboard**: Available at http://localhost:6335/dashboard
+- **Web ダッシュボード**: http://localhost:6335/dashboard でアクセス可能
 
-### Collection Setup
+### コレクションセットアップ
 
-Initialize a collection for document chunks with appropriate settings:
+適切な設定でドキュメントチャンク用のコレクションを初期化します：
 
 ```python
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 import warnings
 
-# Suppress version compatibility warnings
+# バージョン互換性の警告を抑制
 warnings.filterwarnings("ignore", category=UserWarning, module="qdrant_client")
 
-# Connect to Qdrant
+# Qdrant に接続
 client = QdrantClient("localhost", port=6333)
 
-# Create a collection for document embeddings
-# Using 384 dimensions for all-MiniLM-L6-v2 embeddings
+# ドキュメントエンベディング用のコレクションを作成
+# all-MiniLM-L6-v2 エンベディングに 384 次元を使用
 client.create_collection(
     collection_name="document_chunks",
     vectors_config=models.VectorParams(
-        size=384,  # Dimension size for the embedding model
+        size=384,  # エンベディングモデルの次元数
         distance=models.Distance.COSINE
     ),
 )
 
-# Create a payload index for efficient filtering
+# 効率的なフィルタリング用のペイロードインデックスを作成
 client.create_payload_index(
     collection_name="document_chunks",
     field_name="metadata.doc_id",
     field_schema=models.PayloadSchemaType.KEYWORD,
 )
 
-# Create payload index for chunk sequence
+# チャンクシーケンス用のペイロードインデックスを作成
 client.create_payload_index(
     collection_name="document_chunks",
     field_name="metadata.sequence",
@@ -216,23 +216,23 @@ client.create_payload_index(
 )
 ```
 
-### Basic Operations
+### 基本操作
 
-Here are common operations you might need:
+一般的な操作の例：
 
 ```python
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 import warnings
 
-# Suppress version compatibility warnings
+# バージョン互換性の警告を抑制
 warnings.filterwarnings("ignore", category=UserWarning, module="qdrant_client")
 
-# Initialize clients
+# クライアントを初期化
 qdrant = QdrantClient(host="localhost", port=6333)
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Insert a document
+# ドキュメントを挿入
 text = "This document describes the GraphRAG architecture."
 embedding = model.encode(text).tolist()
 qdrant.upsert(
@@ -253,20 +253,20 @@ qdrant.upsert(
     ]
 )
 
-# Search for similar documents
+# 類似ドキュメントを検索
 query = "Tell me about the GraphRAG architecture"
 query_vector = model.encode(query).tolist()
 
-# Handle different Qdrant versions with compatible search approach
+# 異なる Qdrant バージョンに対応する互換性のある検索アプローチ
 try:
-    # Newer Qdrant versions
+    # 新しい Qdrant バージョン
     search_result = qdrant.search(
         collection_name="document_chunks",
         query_vector=query_vector,
         limit=5
     )
 except Exception as e:
-    # Fallback for compatibility issues
+    # 互換性の問題に対するフォールバック
     print(f"Using fallback search due to: {str(e)}")
     search_result = qdrant.search(
         collection_name="document_chunks",
@@ -280,47 +280,47 @@ for result in search_result:
     print("---")
 ```
 
-## Security Considerations
+## セキュリティに関する考慮事項
 
-For production environments:
-
-1. **Neo4j**:
-   - Change default credentials
-   - Enable SSL for bolt connections
-   - Set up role-based access control
-   - Consider network isolation
-
-2. **Qdrant**:
-   - Set up API keys for authentication
-   - Use HTTPS in production
-   - Consider network isolation
-   - Implement proper backup strategies
-
-## Testing the Setup
-
-Verify your setup is working with these checks:
+本番環境向け：
 
 1. **Neo4j**:
-   - Access the web interface at http://localhost:7474
-   - Run a simple Cypher query: `MATCH (n) RETURN n LIMIT 5`
-   - Verify connection via Bolt protocol: `bolt://localhost:7687`
+   - デフォルト認証情報を変更
+   - Bolt 接続の SSL を有効化
+   - ロールベースのアクセス制御を設定
+   - ネットワーク分離を検討
 
 2. **Qdrant**:
-   - Check service status: http://localhost:6335/dashboard
-   - Use the collections API: http://localhost:6335/collections
+   - 認証用の API キーを設定
+   - 本番環境では HTTPS を使用
+   - ネットワーク分離を検討
+   - 適切なバックアップ戦略を実装
 
-3. **Connectivity from MCP**:
-   - Test Neo4j connection using the python driver
-   - Test Qdrant connection using the python client
-   - Verify both connections using the test script in `test_db_connection/test_connections.py`
+## セットアップのテスト
 
-## Troubleshooting
+以下のチェックでセットアップが正しく動作していることを確認してください：
 
-Common issues and solutions:
+1. **Neo4j**:
+   - http://localhost:7474 で Web インターフェースにアクセス
+   - 簡単な Cypher クエリを実行: `MATCH (n) RETURN n LIMIT 5`
+   - Bolt プロトコルで接続を確認: `bolt://localhost:7687`
 
-- **Neo4j won't start**: Check logs at `./neo4j_logs` when using Docker
-- **Qdrant connection refused**: Verify ports are properly exposed (6333 for HTTP, 6334 for gRPC)
-- **Authentication errors**: Ensure credentials match in both config and code
-- **Slow Neo4j queries**: Check your index usage with `EXPLAIN` and `PROFILE`
-- **Vector dimension mismatch**: Ensure embedding dimensions match your Qdrant collection (384 for all-MiniLM-L6-v2)
-- **Version compatibility issues**: Use the warning suppression shown in the examples or update client libraries to match server versions 
+2. **Qdrant**:
+   - サービスのステータスを確認: http://localhost:6335/dashboard
+   - コレクション API を使用: http://localhost:6335/collections
+
+3. **MCP からの接続**:
+   - Python ドライバーを使用して Neo4j 接続をテスト
+   - Python クライアントを使用して Qdrant 接続をテスト
+   - `test_db_connection/test_connections.py` のテストスクリプトで両接続を確認
+
+## トラブルシューティング
+
+よくある問題と解決策：
+
+- **Neo4j が起動しない**: Docker 使用時は `./neo4j_logs` のログを確認
+- **Qdrant 接続拒否**: ポートが正しく公開されているか確認（HTTP は 6333、gRPC は 6334）
+- **認証エラー**: 設定とコードの両方で認証情報が一致しているか確認
+- **Neo4j クエリが遅い**: `EXPLAIN` と `PROFILE` でインデックスの使用状況を確認
+- **ベクトル次元の不一致**: エンベディングの次元数が Qdrant コレクションと一致しているか確認（all-MiniLM-L6-v2 の場合は 384）
+- **バージョン互換性の問題**: サンプルに示された警告抑制を使用するか、クライアントライブラリをサーバーバージョンに合わせて更新

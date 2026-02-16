@@ -1,52 +1,55 @@
-# GraphRAG Source Code
+# GraphRAG ソースコード
 
-This directory contains the core source code for the GraphRAG hybrid retrieval system.
+このディレクトリには、GraphRAG ハイブリッド検索システムのコアソースコードが含まれています。
 
-## Module Structure
+## モジュール構成
 
-- `__init__.py` - Package initialization
-- `config.py` - Configuration management and environment loading
+- `__init__.py` - パッケージ初期化
+- `config.py` - 設定管理と環境変数の読み込み
 
-### Subdirectories
+### サブディレクトリ
 
-- `processors/` - Document processing components
-  - `markdown_processor.py` - Processing and chunking markdown documents
-  
-- `utils/` - Utility functions and helpers
-  - `neo4j_utils.py` - Neo4j database utilities
-  - `qdrant_utils.py` - Qdrant vector database utilities
-  - `query_utils.py` - Query interface for the hybrid system
-  - `text_utils.py` - Text processing utilities
+- `processors/` - ドキュメント処理コンポーネント
+  - `markdown_processor.py` - Markdown ドキュメントの処理とチャンク分割
 
-## Core Components
+- `utils/` - ユーティリティ関数とヘルパー
+  - `neo4j_utils.py` - Neo4j データベースユーティリティ
+  - `qdrant_utils.py` - Qdrant ベクトルデータベースユーティリティ
+  - `query_utils.py` - ハイブリッドシステムのクエリインターフェース
+  - `text_utils.py` - テキスト処理ユーティリティ
 
-### Document Processing
+## コアコンポーネント
 
-The document processing pipeline handles:
-- Reading and parsing markdown files
-- Chunking text into semantic units
-- Extracting metadata and relationships
-- Topic identification
+### ドキュメント処理
 
-### Database Utilities
+ドキュメント処理パイプラインが担当する処理：
 
-The database utilities provide:
-- Connection management for Neo4j and Qdrant
-- Schema setup and validation
-- Query builders and result processors
-- Transaction management
+- Markdown ファイルの読み込みと解析
+- テキストのセマンティック単位へのチャンク分割
+- メタデータと関係性の抽出
+- トピックの識別
 
-### Query Engine
+### データベースユーティリティ
 
-The query interface supports:
-- Hybrid semantic and graph-based search
-- Context expansion for richer results
-- Topic and category filtering
-- Document relationship traversal
+データベースユーティリティが提供する機能：
 
-## Using the Code
+- Neo4j と Qdrant の接続管理
+- スキーマのセットアップと検証
+- クエリビルダーと結果プロセッサー
+- トランザクション管理
 
-Import the modules as needed:
+### クエリエンジン
+
+クエリインターフェースがサポートする検索：
+
+- セマンティック検索とグラフベース検索のハイブリッド検索
+- より豊富な結果のためのコンテキスト拡張
+- トピックとカテゴリによるフィルタリング
+- ドキュメント関係の探索
+
+## コードの使用方法
+
+必要に応じてモジュールをインポートしてください：
 
 ```python
 from src.config import load_config
@@ -55,9 +58,9 @@ from src.utils.qdrant_utils import QdrantHelper
 from src.utils.query_utils import QueryEngine
 from src.processors.markdown_processor import MarkdownProcessor
 
-# Example usage
+# 使用例
 config = load_config()
 neo4j = Neo4jHelper(config)
 qdrant = QdrantHelper(config)
 query_engine = QueryEngine(neo4j, qdrant)
-``` 
+```

@@ -199,17 +199,29 @@ class QdrantManager:
             if filter_conditions:
                 search_filter = self._prepare_filter(filter_conditions)
             
-            # Search in Qdrant
-            search_result = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_vector,
-                limit=limit,
-                query_filter=search_filter
-            )
+            # Search in Qdrant using query_points (v1.7+)
+            # Falls back to legacy search for older versions
+            try:
+                search_result = self.client.query_points(
+                    collection_name=self.collection_name,
+                    query=query_vector,
+                    limit=limit,
+                    query_filter=search_filter
+                )
+                scored_points = search_result.points
+            except AttributeError:
+                # Fallback for older qdrant-client versions
+                search_result = self.client.search(
+                    collection_name=self.collection_name,
+                    query_vector=query_vector,
+                    limit=limit,
+                    query_filter=search_filter
+                )
+                scored_points = search_result
             
             # Process results
             results = []
-            for scored_point in search_result:
+            for scored_point in scored_points:
                 result = {
                     'id': scored_point.id,
                     'score': scored_point.score,
@@ -402,11 +414,14 @@ class QdrantManager:
             # Get collection info
             collection_info = self.client.get_collection(self.collection_name)
             
-            # Count vectors
-            total_vectors = collection_info.vectors_count
+            # Count vectors - Qdrant 1.7+ uses points_count (vectors_count removed)
+            total_vectors = 0
+            if hasattr(collection_info, 'points_count') and collection_info.points_count is not None:
+                total_vectors = collection_info.points_count
+            elif hasattr(collection_info, 'vectors_count') and collection_info.vectors_count is not None:
+                total_vectors = collection_info.vectors_count
             
             # Count documents by distinct doc_id
-            # No direct Qdrant API for this, so use an approximation
             sample_size = min(1000, total_vectors)
             if sample_size > 0:
                 sample = self.client.scroll(
@@ -421,16 +436,30 @@ class QdrantManager:
                     if doc_id:
                         doc_ids.add(doc_id)
                 
-                # Rough estimate of distinct documents
-                estimated_docs = len(doc_ids) / sample_size * total_vectors
+                estimated_docs = len(doc_ids)
+                if sample_size < total_vectors:
+                    estimated_docs = int(len(doc_ids) / sample_size * total_vectors)
             else:
                 estimated_docs = 0
             
+            # Get vector config safely
+            vector_size = self.vector_size
+            distance_name = 'COSINE'
+            try:
+                vectors_cfg = collection_info.config.params.vectors
+                if hasattr(vectors_cfg, 'size'):
+                    vector_size = vectors_cfg.size
+                if hasattr(vectors_cfg, 'distance'):
+                    dist = vectors_cfg.distance
+                    distance_name = dist.name if hasattr(dist, 'name') else str(dist)
+            except (AttributeError, TypeError):
+                pass
+            
             return {
                 'vector_count': total_vectors,
-                'estimated_document_count': int(estimated_docs),
-                'size_bytes': collection_info.config.params.vectors.size * total_vectors * 4,  # size in bytes (float32)
-                'distance': collection_info.config.params.vectors.distance.name
+                'estimated_document_count': estimated_docs,
+                'size_bytes': vector_size * total_vectors * 4,
+                'distance': distance_name
             }
         except Exception as e:
             logger.error(f"Error getting Qdrant statistics: {str(e)}")

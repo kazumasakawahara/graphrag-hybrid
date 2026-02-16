@@ -1,47 +1,50 @@
-# GraphRAG Scripts
+# GraphRAG スクリプト
 
-This directory contains scripts for setting up, importing documents into, and querying the GraphRAG system.
+このディレクトリには、GraphRAG システムのセットアップ、ドキュメントインポート、クエリ実行のためのスクリプトが含まれています。
 
-## Main Scripts
+## メインスクリプト
 
-- `import_docs.py` - Main script for importing documentation into Neo4j and Qdrant
-- `query_demo.py` - Demonstrates how to query the hybrid database
-- `setup_databases.py` - Sets up the Neo4j and Qdrant databases
-- `setup_neo4j_schema.py` - Creates the Neo4j database schema
-- `setup_qdrant_collection.py` - Creates the Qdrant collection
-- `verify_db_structure.py` - Verifies the database structure is correct
+- `import_docs.py` - ドキュメントを Neo4j と Qdrant にインポートするメインスクリプト
+- `query_demo.py` - ハイブリッドデータベースのクエリデモ
+- `setup_databases.py` - Neo4j と Qdrant データベースのセットアップ
+- `setup_neo4j_schema.py` - Neo4j データベーススキーマの作成
+- `setup_qdrant_collection.py` - Qdrant コレクションの作成
+- `verify_db_structure.py` - データベース構造の正当性検証
 
-## Usage Examples
+## 使用例
 
-### Setting up the system:
+### システムのセットアップ：
+
 ```bash
-# Initialize both databases with required schemas/collections
+# 両データベースに必要なスキーマ/コレクションを初期化
 python scripts/setup_databases.py
 ```
 
-### Importing documentation:
+### ドキュメントのインポート：
+
 ```bash
-# Import documents from the your_docs_here directory
+# your_docs_here ディレクトリからドキュメントをインポート
 python scripts/import_docs.py --docs-dir ./your_docs_here
 ```
 
-### Querying the system:
+### システムへのクエリ：
+
 ```bash
-# Run an interactive query demo
+# インタラクティブなクエリデモを実行
 python scripts/query_demo.py
 ```
 
-## Testing Scripts
+## テストスクリプト
 
-The `testing/` subdirectory contains additional scripts for testing database connections and functionality:
+`testing/` サブディレクトリには、データベース接続と機能をテストするための追加スクリプトがあります：
 
-- `test_connections.py` - Tests connections to both databases
-- `query_tester.py` - Tests various query functionality and generates guidelines
-- `check_db.py` - Quick check of Neo4j database 
-- `check_qdrant.py` - Quick check of Qdrant database
+- `test_connections.py` - 両データベースへの接続テスト
+- `query_tester.py` - 各種クエリ機能のテストとガイドライン生成
+- `check_db.py` - Neo4j データベースの簡易チェック
+- `check_qdrant.py` - Qdrant データベースの簡易チェック
 
-## Important Notes
+## 重要事項
 
-- All scripts expect the `.env` file to be properly configured
-- Some scripts may require additional arguments; run with `--help` for details
-- Always run scripts from the project root directory
+- すべてのスクリプトは `.env` ファイルが正しく設定されていることを前提としています
+- 一部のスクリプトは追加の引数が必要です。`--help` を付けて実行すると詳細が表示されます
+- スクリプトは常にプロジェクトルートディレクトリから実行してください

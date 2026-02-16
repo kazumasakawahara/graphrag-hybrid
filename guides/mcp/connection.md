@@ -1,112 +1,112 @@
-# GraphRAG Database Connection Guide
+# GraphRAG データベース接続ガイド
 
-This guide provides detailed instructions for establishing connections to the Neo4j graph database and Qdrant vector database used in the GraphRAG system.
+このガイドでは、GraphRAG システムで使用する Neo4j グラフデータベースと Qdrant ベクトルデータベースへの接続確立方法を詳しく説明します。
 
-## Verified Connection Parameters
+## 検証済み接続パラメータ
 
-Through extensive testing, we've identified the following connection parameters:
+広範なテストにより、以下の接続パラメータが確認されています：
 
-| Database | Service | Port | Authentication |
+| データベース | サービス | ポート | 認証 |
 |----------|---------|------|---------------|
 | Neo4j    | HTTP    | 7474 | neo4j/password |
 | Neo4j    | Bolt    | 7687 | neo4j/password |
-| Qdrant   | HTTP    | 6333 | None (default) |
+| Qdrant   | HTTP    | 6333 | なし（デフォルト） |
 
-> **Note**: Both databases are configured with their standard default ports. Neo4j uses 7474 for HTTP and 7687 for Bolt, while Qdrant uses 6333 for HTTP.
+> **注意**: 両データベースは標準のデフォルトポートで設定されています。Neo4j は HTTP に 7474、Bolt に 7687 を使用し、Qdrant は HTTP に 6333 を使用します。
 
-## Required Dependencies
+## 必要な依存パッケージ
 
-Install the following Python packages to connect to the databases:
+データベースに接続するために以下の Python パッケージをインストールしてください：
 
 ```bash
-pip install neo4j==5.9.0 qdrant-client==1.6.0 sentence-transformers==2.2.2
+uv add neo4j==5.9.0 qdrant-client==1.6.0 sentence-transformers==2.2.2
 ```
 
-## Neo4j Connection Setup
+## Neo4j 接続セットアップ
 
-### Connection String Format
+### 接続文字列のフォーマット
 
-The Neo4j connection string follows this format:
-```bolt://[hostname]:[port]
+Neo4j の接続文字列は以下のフォーマットに従います：
+```bolt://[ホスト名]:[ポート]
 ```
 
-### Basic Connection Example
+### 基本的な接続例
 
 ```python
 from neo4j import GraphDatabase
 
-# Connection parameters
-neo4j_uri = "bolt://localhost:7688"  # Note the non-standard port
+# 接続パラメータ
+neo4j_uri = "bolt://localhost:7688"  # 非標準ポートに注意
 neo4j_user = "neo4j"
 neo4j_password = "password"
 
-# Establish connection
+# 接続を確立
 driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
 
-# Test connection
+# 接続テスト
 def test_connection():
     with driver.session() as session:
         result = session.run("MATCH (n) RETURN count(n) AS node_count")
         return result.single()["node_count"]
 
-# Print node count
+# ノード数を表示
 print(f"Connected to Neo4j database with {test_connection()} nodes")
 
-# Close connection when done
+# 完了時に接続を閉じる
 driver.close()
 ```
 
-### Connection with Error Handling
+### エラーハンドリング付き接続
 
 ```python
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
 
 def connect_to_neo4j(uri, user, password, max_retries=3):
-    """Connect to Neo4j with retry logic and error handling."""
+    """リトライロジックとエラーハンドリング付きで Neo4j に接続"""
     retry_count = 0
-    
+
     while retry_count < max_retries:
         try:
             driver = GraphDatabase.driver(uri, auth=(user, password))
-            
-            # Verify connection
+
+            # 接続を検証
             with driver.session() as session:
                 result = session.run("RETURN 1 AS test")
                 result.single()
-                
+
             print(f"✅ Successfully connected to Neo4j at {uri}")
             return driver
-            
+
         except ServiceUnavailable as e:
             retry_count += 1
-            wait_time = 2 ** retry_count  # Exponential backoff
+            wait_time = 2 ** retry_count  # 指数バックオフ
             print(f"❌ Neo4j connection failed (attempt {retry_count}/{max_retries}): {e}")
             print(f"   Retrying in {wait_time} seconds...")
             time.sleep(wait_time)
-            
+
         except AuthError as e:
             print(f"❌ Neo4j authentication failed: {e}")
             print("   Please check username and password.")
             break
-            
+
         except Exception as e:
             print(f"❌ Unexpected error connecting to Neo4j: {e}")
             break
-    
+
     if retry_count >= max_retries:
         print(f"❌ Failed to connect to Neo4j after {max_retries} attempts")
-    
+
     return None
 ```
 
-### Testing Multiple Ports
+### 複数ポートのテスト
 
-If you're unsure which port Neo4j is using, you can test multiple ports:
+Neo4j が使用しているポートが不明な場合、複数のポートをテストできます：
 
 ```python
 def find_neo4j_port(host="localhost", ports=[7687, 7688, 7689]):
-    """Try to connect to Neo4j on different ports."""
+    """異なるポートで Neo4j への接続を試行"""
     for port in ports:
         uri = f"bolt://{host}:{port}"
         try:
@@ -117,82 +117,82 @@ def find_neo4j_port(host="localhost", ports=[7687, 7688, 7689]):
                     return port
         except Exception as e:
             print(f"❌ Neo4j not available on port {port}: {e}")
-    
+
     print("❌ Could not connect to Neo4j on any of the specified ports")
     return None
 ```
 
-## Qdrant Connection Setup
+## Qdrant 接続セットアップ
 
-### Basic Connection
+### 基本的な接続
 
 ```python
 from qdrant_client import QdrantClient
 
-# Connection parameters
+# 接続パラメータ
 qdrant_host = "localhost"
-qdrant_port = 6335  # Note the non-standard port
+qdrant_port = 6335  # 非標準ポートに注意
 qdrant_collection = "document_chunks"
 
-# Connect to Qdrant
+# Qdrant に接続
 client = QdrantClient(host=qdrant_host, port=qdrant_port)
 
-# Test connection
+# 接続テスト
 def test_collection():
     try:
         collection_info = client.get_collection(qdrant_collection)
-        
-        # Handle different API versions
+
+        # 異なる API バージョンに対応
         vectors_count = None
         if hasattr(collection_info, 'vectors_count'):
             vectors_count = collection_info.vectors_count
         elif hasattr(collection_info, 'points_count'):
             vectors_count = collection_info.points_count
-        
+
         return vectors_count
     except Exception as e:
         print(f"Error getting collection info: {e}")
         return None
 
-# Print collection size
+# コレクションサイズを表示
 vector_count = test_collection()
 if vector_count is not None:
     print(f"Connected to Qdrant collection '{qdrant_collection}' with {vector_count} vectors")
 ```
 
-### Connection with Version Compatibility
+### バージョン互換性対応の接続
 
-Qdrant client versions may have different API methods. Here's how to handle different versions:
+Qdrant クライアントのバージョンによって API メソッドが異なる場合があります。異なるバージョンに対応する方法：
 
 ```python
 import warnings
 from qdrant_client import QdrantClient
 
-# Suppress version compatibility warnings
+# バージョン互換性の警告を抑制
 warnings.filterwarnings("ignore", category=UserWarning, module="qdrant_client")
 
 def connect_to_qdrant(host, port, collection_name, max_retries=3):
-    """Connect to Qdrant with error handling and version compatibility."""
+    """エラーハンドリングとバージョン互換性対応付きで Qdrant に接続"""
     retry_count = 0
-    
+
     while retry_count < max_retries:
         try:
-            # Connect to Qdrant
+            # Qdrant に接続
             client = QdrantClient(host=host, port=port)
-            
-            # Verify connection by checking collection
+
+            # コレクションを確認して接続を検証
             collection_info = client.get_collection(collection_name)
-            
-            # Try to get vector count using different API versions
+
+            # 異なる API バージョンでベクトル数を取得
             vectors_count = None
-            
-            # Try approach for newer versions
+
+            # 新しいバージョン向けのアプローチ
             if hasattr(collection_info, 'vectors_count'):
                 vectors_count = collection_info.vectors_count
-            # Try approach for other versions
+            # 他のバージョン向けのアプローチ
             elif hasattr(collection_info, 'points_count'):
                 vectors_count = collection_info.points_count
-            # Try to navigate the potentially nested structure
+            # ネストされた構造を探索
             else:
                 try:
                     if hasattr(collection_info.config, 'params'):
@@ -200,38 +200,38 @@ def connect_to_qdrant(host, port, collection_name, max_retries=3):
                             vectors_count = collection_info.config.params.vectors.size
                 except:
                     pass
-            
+
             if vectors_count is not None:
                 print(f"✅ Connected to Qdrant collection '{collection_name}' with {vectors_count} vectors")
             else:
                 print(f"✅ Connected to Qdrant collection '{collection_name}', but couldn't determine vector count")
-                
+
             return client
-            
+
         except ConnectionError as e:
             retry_count += 1
-            wait_time = 2 ** retry_count  # Exponential backoff
+            wait_time = 2 ** retry_count  # 指数バックオフ
             print(f"❌ Qdrant connection failed (attempt {retry_count}/{max_retries}): {e}")
             print(f"   Retrying in {wait_time} seconds...")
             time.sleep(wait_time)
-            
+
         except Exception as e:
             print(f"❌ Error connecting to Qdrant: {e}")
             break
-    
+
     if retry_count >= max_retries:
         print(f"❌ Failed to connect to Qdrant after {max_retries} attempts")
-    
+
     return None
 ```
 
-### Testing Multiple Ports
+### 複数ポートのテスト
 
-Similar to Neo4j, you can test multiple ports for Qdrant:
+Neo4j と同様に、Qdrant でも複数のポートをテストできます：
 
 ```python
 def find_qdrant_port(host="localhost", ports=[6333, 6334, 6335]):
-    """Try to connect to Qdrant on different ports."""
+    """異なるポートで Qdrant への接続を試行"""
     for port in ports:
         try:
             client = QdrantClient(host=host, port=port)
@@ -240,20 +240,20 @@ def find_qdrant_port(host="localhost", ports=[6333, 6334, 6335]):
             return port
         except Exception as e:
             print(f"❌ Qdrant not available on port {port}: {e}")
-    
+
     print("❌ Could not connect to Qdrant on any of the specified ports")
     return None
 ```
 
-## Setting Up the Embedding Model
+## エンベディングモデルのセットアップ
 
-To query the vector database effectively, you'll need to use the same embedding model that was used to create the vector embeddings:
+ベクトルデータベースを効果的にクエリするには、ベクトルエンベディングの作成に使用したものと同じエンベディングモデルを使用する必要があります：
 
 ```python
 from sentence_transformers import SentenceTransformer
 
 def load_embedding_model(model_name="all-MiniLM-L6-v2"):
-    """Load the sentence transformer model for creating embeddings."""
+    """エンベディング作成用の Sentence Transformer モデルを読み込み"""
     try:
         model = SentenceTransformer(model_name)
         print(f"✅ Loaded embedding model: {model_name}")
@@ -262,14 +262,14 @@ def load_embedding_model(model_name="all-MiniLM-L6-v2"):
         print(f"❌ Error loading embedding model: {e}")
         return None
 
-# Load the model
+# モデルを読み込み
 model = load_embedding_model()
 
-# Generate an embedding for a query
+# クエリ用のエンベディングを生成
 def generate_embedding(text, model):
     if model is None:
         return None
-    
+
     try:
         embedding = model.encode(text)
         return embedding
@@ -278,9 +278,9 @@ def generate_embedding(text, model):
         return None
 ```
 
-## Complete Connection Manager Example
+## 完全な接続マネージャーの例
 
-Here's a complete connection manager that handles connections to both databases:
+両データベースへの接続を管理する完全な接続マネージャーの例：
 
 ```python
 import os
@@ -293,111 +293,111 @@ from neo4j.exceptions import ServiceUnavailable, AuthError
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
-# Suppress Qdrant version warnings
+# Qdrant バージョン警告を抑制
 warnings.filterwarnings("ignore", category=UserWarning, module="qdrant_client")
 
 class GraphRAGConnectionManager:
-    """Manager for connections to Neo4j and Qdrant databases."""
-    
+    """Neo4j と Qdrant データベースへの接続マネージャー"""
+
     def __init__(self):
-        # Neo4j connection parameters
+        # Neo4j 接続パラメータ
         self.neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7688")
         self.neo4j_user = os.getenv("NEO4J_USER", "neo4j")
         self.neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
         self.neo4j_driver = None
-        
-        # Qdrant connection parameters
+
+        # Qdrant 接続パラメータ
         self.qdrant_host = os.getenv("QDRANT_HOST", "localhost")
         self.qdrant_port = int(os.getenv("QDRANT_PORT", "6335"))
         self.qdrant_collection = os.getenv("QDRANT_COLLECTION", "document_chunks")
         self.qdrant_client = None
-        
-        # Embedding model
+
+        # エンベディングモデル
         self.model_name = "all-MiniLM-L6-v2"
         self.model = None
-    
+
     def connect(self, max_retries=3):
-        """Connect to both databases and load the embedding model."""
+        """両データベースに接続し、エンベディングモデルを読み込み"""
         success = True
-        
-        # Connect to Neo4j
+
+        # Neo4j に接続
         if not self._connect_neo4j(max_retries):
             success = False
-        
-        # Connect to Qdrant
+
+        # Qdrant に接続
         if not self._connect_qdrant(max_retries):
             success = False
-        
-        # Load embedding model
+
+        # エンベディングモデルを読み込み
         if not self._load_model():
             success = False
-        
+
         return success
-    
+
     def _connect_neo4j(self, max_retries=3):
-        """Connect to Neo4j with retry logic."""
+        """リトライロジック付きで Neo4j に接続"""
         retry_count = 0
-        
+
         while retry_count < max_retries:
             try:
                 self.neo4j_driver = GraphDatabase.driver(
-                    self.neo4j_uri, 
+                    self.neo4j_uri,
                     auth=(self.neo4j_user, self.neo4j_password)
                 )
-                
-                # Verify connection
+
+                # 接続を検証
                 with self.neo4j_driver.session() as session:
                     result = session.run("MATCH (d:Document) RETURN count(d) AS count")
                     record = result.single()
                     print(f"✅ Connected to Neo4j with {record['count']} documents")
-                
+
                 return True
-                
+
             except ServiceUnavailable as e:
                 retry_count += 1
-                wait_time = 2 ** retry_count  # Exponential backoff
+                wait_time = 2 ** retry_count  # 指数バックオフ
                 print(f"❌ Neo4j connection failed (attempt {retry_count}/{max_retries}): {e}")
                 print(f"   Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
-                
+
             except AuthError as e:
                 print(f"❌ Neo4j authentication failed: {e}")
                 print("   Please check username and password.")
                 break
-                
+
             except Exception as e:
                 print(f"❌ Unexpected error connecting to Neo4j: {e}")
                 break
-        
+
         if retry_count >= max_retries:
             print(f"❌ Failed to connect to Neo4j after {max_retries} attempts")
-        
+
         return False
-    
+
     def _connect_qdrant(self, max_retries=3):
-        """Connect to Qdrant with retry logic."""
+        """リトライロジック付きで Qdrant に接続"""
         retry_count = 0
-        
+
         while retry_count < max_retries:
             try:
                 self.qdrant_client = QdrantClient(
-                    host=self.qdrant_host, 
+                    host=self.qdrant_host,
                     port=self.qdrant_port
                 )
-                
-                # Verify connection
+
+                # 接続を検証
                 collection_info = self.qdrant_client.get_collection(self.qdrant_collection)
-                
-                # Try to get vector count using different API versions
+
+                # 異なる API バージョンでベクトル数を取得
                 vectors_count = None
-                
-                # Try approach for newer versions
+
+                # 新しいバージョン向けのアプローチ
                 if hasattr(collection_info, 'vectors_count'):
                     vectors_count = collection_info.vectors_count
-                # Try approach for other versions
+                # 他のバージョン向けのアプローチ
                 elif hasattr(collection_info, 'points_count'):
                     vectors_count = collection_info.points_count
-                # Try to navigate the potentially nested structure
+                # ネストされた構造を探索
                 else:
                     try:
                         if hasattr(collection_info.config, 'params'):
@@ -405,32 +405,32 @@ class GraphRAGConnectionManager:
                                 vectors_count = collection_info.config.params.vectors.size
                     except:
                         pass
-                
+
                 if vectors_count is not None:
                     print(f"✅ Connected to Qdrant collection '{self.qdrant_collection}' with {vectors_count} vectors")
                 else:
                     print(f"✅ Connected to Qdrant collection '{self.qdrant_collection}', but couldn't determine vector count")
-                    
+
                 return True
-                
+
             except ConnectionError as e:
                 retry_count += 1
-                wait_time = 2 ** retry_count  # Exponential backoff
+                wait_time = 2 ** retry_count  # 指数バックオフ
                 print(f"❌ Qdrant connection failed (attempt {retry_count}/{max_retries}): {e}")
                 print(f"   Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
-                
+
             except Exception as e:
                 print(f"❌ Error connecting to Qdrant: {e}")
                 break
-        
+
         if retry_count >= max_retries:
             print(f"❌ Failed to connect to Qdrant after {max_retries} attempts")
-        
+
         return False
-    
+
     def _load_model(self):
-        """Load the sentence transformer model."""
+        """Sentence Transformer モデルを読み込み"""
         try:
             self.model = SentenceTransformer(self.model_name)
             print(f"✅ Loaded embedding model: {self.model_name}")
@@ -438,44 +438,44 @@ class GraphRAGConnectionManager:
         except Exception as e:
             print(f"❌ Error loading embedding model: {e}")
             return False
-    
+
     def close(self):
-        """Close all connections."""
+        """すべての接続を閉じる"""
         if self.neo4j_driver:
             self.neo4j_driver.close()
             print("✅ Neo4j connection closed")
-        
-        # Qdrant client doesn't require explicit closure
-        
+
+        # Qdrant クライアントは明示的な終了が不要
+
         print("✅ All connections closed")
 ```
 
-## Usage Example
+## 使用例
 
-Here's how to use the connection manager:
+接続マネージャーの使用方法：
 
 ```python
-# Create the connection manager
+# 接続マネージャーを作成
 manager = GraphRAGConnectionManager()
 
-# Connect to databases
+# データベースに接続
 if manager.connect():
     print("All connections established successfully")
-    
-    # Use the connections...
-    
-    # Close connections when done
+
+    # 接続を使用...
+
+    # 完了時に接続を閉じる
     manager.close()
 else:
     print("Failed to establish all connections")
 ```
 
-## Environment Variables
+## 環境変数
 
-To simplify configuration, consider using environment variables for connection parameters:
+設定を簡素化するために、接続パラメータに環境変数を使用することを検討してください：
 
 ```bash
-# .env file
+# .env ファイル
 NEO4J_URI=bolt://localhost:7688
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
@@ -484,16 +484,16 @@ QDRANT_PORT=6335
 QDRANT_COLLECTION=document_chunks
 ```
 
-To load these environment variables in Python:
+Python で環境変数を読み込むには：
 
 ```python
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# .env ファイルから環境変数を読み込み
 load_dotenv()
 
-# Get connection parameters
+# 接続パラメータを取得
 neo4j_uri = os.getenv("NEO4J_URI")
 neo4j_user = os.getenv("NEO4J_USER")
 neo4j_password = os.getenv("NEO4J_PASSWORD")
@@ -502,41 +502,41 @@ qdrant_port = int(os.getenv("QDRANT_PORT"))
 qdrant_collection = os.getenv("QDRANT_COLLECTION")
 ```
 
-## Troubleshooting Connection Issues
+## 接続問題のトラブルシューティング
 
-### Neo4j Connection Issues
+### Neo4j 接続の問題
 
-1. **Connection Refused**: 
-   - Verify Neo4j is running
-   - Check the correct port (7688 for this setup)
-   - Try connecting directly via the Neo4j Browser at http://localhost:7474
+1. **接続拒否**:
+   - Neo4j が実行中であることを確認
+   - 正しいポートを確認（このセットアップでは 7688）
+   - http://localhost:7474 の Neo4j ブラウザで直接接続を試行
 
-2. **Authentication Failed**:
-   - Verify username and password
-   - Check if authentication is enabled in Neo4j configuration
+2. **認証失敗**:
+   - ユーザー名とパスワードを確認
+   - Neo4j の設定で認証が有効になっているか確認
 
-3. **Timeout**:
-   - Check network connectivity
-   - Ensure Neo4j isn't overloaded with long-running queries
+3. **タイムアウト**:
+   - ネットワーク接続を確認
+   - Neo4j が長時間実行クエリで過負荷になっていないか確認
 
-### Qdrant Connection Issues
+### Qdrant 接続の問題
 
-1. **Connection Refused**:
-   - Verify Qdrant is running
-   - Check the correct port (6335 for this setup)
-   - Try connecting to the Qdrant API directly: http://localhost:6335/dashboard
+1. **接続拒否**:
+   - Qdrant が実行中であることを確認
+   - 正しいポートを確認（このセットアップでは 6335）
+   - Qdrant API に直接接続を試行: http://localhost:6335/dashboard
 
-2. **Collection Not Found**:
-   - Verify the collection name is correct ("document_chunks")
-   - Check if the collection exists in the Qdrant dashboard
+2. **コレクションが見つからない**:
+   - コレクション名が正しいことを確認（"document_chunks"）
+   - Qdrant ダッシュボードでコレクションが存在するか確認
 
-3. **Version Compatibility**:
-   - Warnings about deprecated methods are normal between client versions
-   - Use the version-handling code shown in the examples
+3. **バージョン互換性**:
+   - クライアントバージョン間の非推奨メソッドに関する警告は正常
+   - サンプルに示されたバージョン対応コードを使用
 
-## Additional Resources
+## 参考リソース
 
 - [Neo4j Driver Documentation](https://neo4j.com/docs/api/python-driver/current/)
 - [Qdrant Client Documentation](https://qdrant.tech/documentation/quick-start/)
 - [Sentence-Transformers Documentation](https://www.sbert.net/)
-- [Database Connection Testing Report](../test_db_connection/index.md) 
+- [データベース接続テストレポート](../test_db_connection/index.md)

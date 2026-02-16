@@ -1,197 +1,207 @@
-# GraphRAG: Hybrid Neo4j and Qdrant Retrieval System
+# GraphRAG: Neo4j と Qdrant のハイブリッド検索システム
 
-A powerful retrieval augmentation generation (RAG) system that combines Neo4j graph database and Qdrant vector database for advanced document retrieval. This system provides a hybrid approach that leverages both document relationships and vector similarity for enhanced search capabilities.
+Neo4j グラフデータベースと Qdrant ベクトルデータベースを組み合わせた、高度なドキュメント検索を実現する検索拡張生成（RAG）システムです。ドキュメントの関係性とベクトル類似度の両方を活用したハイブリッドアプローチにより、強力な検索機能を提供します。
 
-> **AI Agents**: If you're an AI agent exploring this repository, start with [AI_ENTRY.md](AI_ENTRY.md) for a comprehensive overview.
+> **AIエージェントの方へ**: このリポジトリを探索するAIエージェントの方は、まず [AI_ENTRY.md](AI_ENTRY.md) をご覧ください。
 
-## System Overview
+## システム概要
 
-GraphRAG uses two complementary databases:
+GraphRAG は2つの補完的なデータベースを使用します：
 
-1. **Neo4j Graph Database**: Stores document relationships, categories, and metadata
-2. **Qdrant Vector Database**: Stores document chunk embeddings for semantic search
+1. **Neo4j グラフデータベース**: ドキュメントの関係性、カテゴリ、メタデータを保存
+2. **Qdrant ベクトルデータベース**: セマンティック検索のためのドキュメントチャンク埋め込みを保存
 
-## Verified Database Connection Information
+## 検証済みデータベース接続情報
 
-| Database | Service | Port | Authentication |
-|----------|---------|------|---------------|
-| Neo4j    | HTTP    | 7474 | neo4j/password |
-| Neo4j    | Bolt    | 7687 | neo4j/password |
-| Qdrant   | HTTP    | 6333 | None (default) |
+| データベース | サービス | ポート | 認証 |
+|-------------|---------|--------|------|
+| Neo4j       | HTTP    | 7474   | neo4j/password |
+| Neo4j       | Bolt    | 7687   | neo4j/password |
+| Qdrant      | HTTP    | 6333   | なし（デフォルト） |
 
-### Connection Parameters
+### 接続パラメータ
 
-For use in applications:
+アプリケーションでの使用：
 
 ```
-# Neo4j Configuration
+# Neo4j 設定
 NEO4J_HTTP_URI=http://localhost:7474
 NEO4J_BOLT_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
 
-# Qdrant Configuration
+# Qdrant 設定
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 QDRANT_COLLECTION=document_chunks
 ```
 
-## Features
+## 機能
 
-- **Document Processing**: Parse and chunk Markdown documents with YAML frontmatter
-- **Semantic Search**: Vector-based similarity search using transformer models
-- **Graph-based Navigation**: Explore document relationships using Neo4j graph database
-- **Hybrid Search**: Combine semantic and graph-based approaches for better results
-- **External Integration**: Ready-to-use tools for integration with external systems
+- **ドキュメント処理**: YAML フロントマター付きの Markdown ドキュメントの解析とチャンク分割
+- **セマンティック検索**: トランスフォーマーモデルを使用したベクトルベースの類似度検索
+- **グラフベースナビゲーション**: Neo4j グラフデータベースを使用したドキュメント関係の探索
+- **ハイブリッド検索**: セマンティック検索とグラフベースアプローチの組み合わせによる高精度な結果
+- **外部連携**: 外部システムとの統合に対応したツール
 
-## Project Structure
+## プロジェクト構成
 
 ```
 graphrag/
-├── src/                          # Source code
-│   ├── config.py                 # Configuration management
-│   ├── query_engine.py           # Hybrid query engine
-│   ├── database/                 # Database managers
-│   │   ├── neo4j_manager.py      # Neo4j database manager
-│   │   └── qdrant_manager.py     # Qdrant vector database manager
-│   └── processors/               # Data processors
-│       ├── document_processor.py # Document parsing and chunking
-│       └── embedding_processor.py # Text embedding generation
-├── scripts/                      # Utility scripts
-│   ├── import_docs.py            # Document import script
-│   └── query_demo.py             # Query demonstration script
-├── your_docs_here/               # Add your markdown documents here
-├── data/                         # Data storage directory
-├── guides/                       # User guides and documentation
-├── test_db_connection/           # Database connection testing
-├── docker-compose.yml            # Docker-compose for Neo4j and Qdrant
-├── requirements.txt              # Python dependencies
-└── .env.example                  # Example environment variables
+├── src/                          # ソースコード
+│   ├── config.py                 # 設定管理
+│   ├── query_engine.py           # ハイブリッドクエリエンジン
+│   ├── database/                 # データベースマネージャー
+│   │   ├── neo4j_manager.py      # Neo4j データベースマネージャー
+│   │   └── qdrant_manager.py     # Qdrant ベクトルデータベースマネージャー
+│   └── processors/               # データプロセッサー
+│       ├── document_processor.py # ドキュメント解析・チャンク分割
+│       └── embedding_processor.py # テキスト埋め込み生成
+├── scripts/                      # ユーティリティスクリプト
+│   ├── import_docs.py            # ドキュメントインポートスクリプト
+│   └── query_demo.py             # クエリデモスクリプト
+├── your_docs_here/               # Markdown ドキュメント格納ディレクトリ
+├── data/                         # データ保存ディレクトリ
+├── guides/                       # ユーザーガイド・ドキュメント
+├── test_db_connection/           # データベース接続テスト
+├── docker-compose.yml            # Neo4j と Qdrant の Docker Compose 設定
+├── pyproject.toml                # Python プロジェクト設定・依存パッケージ
+└── .env.example                  # 環境変数の設定例
 ```
 
-## Setup
+## セットアップ
 
-### Prerequisites
+### 前提条件
 
-- Python 3.9+
-- Docker and Docker Compose
+- Python 3.10+
+- [uv](https://docs.astral.sh/uv/) (Python パッケージマネージャー)
+- Docker および Docker Compose
 - Neo4j 5.x
 - Qdrant 1.5.0+
 
-### Installation
+### インストール
 
-1. Clone the repository:
+1. リポジトリをクローン：
 
 ```bash
 git clone https://github.com/yourusername/graphrag.git
 cd graphrag
 ```
 
-2. Create and activate a virtual environment:
+2. 依存パッケージをインストール：
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+uv sync
 ```
 
-3. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-4. Create configuration file:
+4. 設定ファイルを作成：
 
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
+# .env を編集して設定を行う
 ```
 
-5. Start Neo4j and Qdrant using Docker:
+5. Docker で Neo4j と Qdrant を起動：
 
 ```bash
 docker-compose up -d
 ```
 
-### Importing Documents
+### ドキュメントのインポート
 
-To import documents into the system:
+#### Web UI（推奨）
+
+Streamlit の管理画面から PDF や Markdown ファイルをアップロードできます：
 
 ```bash
-python scripts/import_docs.py --docs-dir ./your_docs_here --recursive
+uv run streamlit run app.py
 ```
 
-This will:
-- Process all Markdown files in the directory
-- Extract metadata from YAML frontmatter
-- Chunk the documents into manageable pieces
-- Store document metadata and relationships in Neo4j
-- Generate embeddings and store them in Qdrant
+ブラウザで `http://localhost:8501` が開き、以下の操作が可能です：
 
-## Usage
+- PDF / Markdown ファイルのドラッグ&ドロップアップロード
+- カテゴリ・タイトルの設定
+- 登録済みドキュメントの一覧・削除
 
-### Running Queries
+#### CLI
 
-Use the query demo script to explore the system:
+コマンドラインからまとめてインポートすることも可能です：
 
 ```bash
-# Hybrid search
+uv run python scripts/import_docs.py --docs-dir ./your_docs_here --recursive
+```
+
+この処理では以下が行われます：
+- ディレクトリ内のすべての Markdown ファイルを処理
+- YAML フロントマターからメタデータを抽出
+- ドキュメントを適切なサイズにチャンク分割
+- ドキュメントのメタデータと関係性を Neo4j に保存
+- 埋め込みを生成して Qdrant に保存
+
+## 使い方
+
+### クエリの実行
+
+クエリデモスクリプトを使用してシステムを試す：
+
+```bash
+# ハイブリッド検索
 python scripts/query_demo.py --query "What is GraphRAG?" --type hybrid --limit 5
 
-# Category search
+# カテゴリ検索
 python scripts/query_demo.py --query "documentation" --type category --category "user-guide"
 
-# Get document by ID
+# ドキュメントIDで取得
 python scripts/query_demo.py --document "doc_123456"
 
-# List all categories
+# 全カテゴリ一覧
 python scripts/query_demo.py --list-categories
 
-# Show system statistics
+# システム統計情報の表示
 python scripts/query_demo.py --stats
 ```
 
-### External Integration
+### 外部システムとの連携
 
-To integrate with external systems, use the provided Python modules in the `src` directory. See the guides in the `guides/mcp` directory for detailed integration instructions.
+外部システムとの連携には、`src` ディレクトリ内の Python モジュールを使用してください。詳細な連携手順は `guides/mcp` ディレクトリのガイドを参照してください。
 
-## Document Format Requirements
+## ドキュメントフォーマット要件
 
-The system processes Markdown files with YAML frontmatter. For optimal results, follow this format:
+本システムは YAML フロントマター付きの Markdown ファイルを処理します。最適な結果を得るには、以下のフォーマットに従ってください：
 
-### Required Front Matter Format
+### 必須フロントマターフォーマット
 
 ```markdown
 ---
-title: Analytics and Monitoring              # Document title (required)
-category: frontend/ux                        # Category path (required)
-updated: '2023-04-01'                        # Last updated date (optional)
-related:                                     # Related documents (optional)
+title: アナリティクスとモニタリング            # ドキュメントタイトル（必須）
+category: frontend/ux                        # カテゴリパス（必須）
+updated: '2023-04-01'                        # 最終更新日（任意）
+related:                                     # 関連ドキュメント（任意）
 - ui/DATA_FETCHING.md
 - ui/STATE_MANAGEMENT.md
 - ux/USER_FLOWS.md
-key_concepts:                                # Key concepts for indexing (optional)
+key_concepts:                                # インデックス用キーコンセプト（任意）
 - analytics_integration
 - user_behavior_tracking
 - performance_monitoring
 ---
 
-# Analytics and Monitoring
+# アナリティクスとモニタリング
 
-This document outlines the approach to analytics and monitoring within the application.
+このドキュメントでは、アプリケーション内のアナリティクスとモニタリングのアプローチを説明します。
 
-## Analytics Strategy
+## アナリティクス戦略
 
-### Core Principles
+### 基本原則
 
-The analytics implementation adheres to these principles:
+アナリティクスの実装は以下の原則に従います：
 
-- **Purpose-Driven**: Collection tied to specific business or UX questions
-- **Privacy-First**: Minimal data collection with clear user consent
+- **目的指向**: ビジネスまたはUXの具体的な質問に紐づいた収集
+- **プライバシーファースト**: 明確なユーザー同意のもとでの最小限のデータ収集
 
-## Performance Monitoring
+## パフォーマンスモニタリング
 
-Code examples should use language identifiers:
+コードサンプルでは言語識別子を使用します：
 
 ```javascript
 function trackEvent(eventName, properties) {
@@ -203,54 +213,54 @@ function trackEvent(eventName, properties) {
 ```
 ```
 
-### Document Structure Best Practices
+### ドキュメント構成のベストプラクティス
 
-- Start with a single `# Title` (H1) heading after the front matter
-- Use proper heading hierarchy (`##`, `###`, etc.)
-- Include code blocks with language identifiers
-- Use lists, tables, and other markdown features as needed
-- Link to related documents where appropriate
-- Include key concepts that might be important for retrieval
+- フロントマターの後に単一の `# タイトル`（H1）見出しで始める
+- 適切な見出し階層（`##`、`###` など）を使用する
+- 言語識別子付きのコードブロックを含める
+- リスト、テーブルなどの Markdown 機能を必要に応じて使用する
+- 関連ドキュメントへのリンクを適切に配置する
+- 検索に重要なキーコンセプトを含める
 
-The system will process these documents by:
-1. Parsing the front matter metadata
-2. Extracting hierarchical structure from headings
-3. Splitting content into appropriate chunks
-4. Creating relationships based on the "related" field
-5. Indexing key concepts for enhanced retrieval
+システムは以下の手順でドキュメントを処理します：
+1. フロントマターのメタデータを解析
+2. 見出しから階層構造を抽出
+3. コンテンツを適切なチャンクに分割
+4. 「related」フィールドに基づく関係性を作成
+5. 検索精度向上のためキーコンセプトをインデックス化
 
-## Configuration
+## 設定
 
-Configure the system by setting environment variables or using a `.env` file:
+環境変数または `.env` ファイルでシステムを設定します：
 
-- **Neo4j Configuration**: 
+- **Neo4j 設定**:
   - `NEO4J_URI=bolt://localhost:7687`
   - `NEO4J_HTTP_URI=http://localhost:7474`
   - `NEO4J_USERNAME=neo4j`
   - `NEO4J_PASSWORD=password`
 
-- **Qdrant Configuration**: 
+- **Qdrant 設定**:
   - `QDRANT_HOST=localhost`
   - `QDRANT_PORT=6333`
   - `QDRANT_COLLECTION=document_chunks`
 
-- **Embedding Configuration**: Model settings for text embeddings
-- **Chunking Configuration**: Document chunking parameters
+- **埋め込み設定**: テキスト埋め込みのモデル設定
+- **チャンク設定**: ドキュメントチャンク分割パラメータ
 
-## Verification
+## 検証
 
-After setup, verify database connections:
+セットアップ後、データベース接続を確認します：
 
 ```bash
 python test_db_connection/test_connections.py
 ```
 
-## License
+## ライセンス
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+このプロジェクトは MIT ライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルを参照してください。
 
-## Acknowledgements
+## 謝辞
 
-- [Neo4j](https://neo4j.com/) for graph database
-- [Qdrant](https://qdrant.tech/) for vector similarity search
-- [HuggingFace](https://huggingface.co/) for transformer models 
+- [Neo4j](https://neo4j.com/) - グラフデータベース
+- [Qdrant](https://qdrant.tech/) - ベクトル類似度検索
+- [HuggingFace](https://huggingface.co/) - トランスフォーマーモデル
