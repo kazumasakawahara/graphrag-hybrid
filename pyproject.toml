@@ -27,4 +27,6 @@ dependencies = [
     # UI & Document Processing
     "streamlit>=1.30.0",
     "pymupdf4llm>=0.0.10",
+    # LLM Entity Extraction
+    "google-genai>=1.0.0",
 ]

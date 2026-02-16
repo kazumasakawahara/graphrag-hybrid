@@ -353,7 +353,9 @@ class GraphRAGMCPTool:
                 "neo4j": {
                     "document_count": stats.get('neo4j', {}).get('document_count', 0),
                     "chunk_count": stats.get('neo4j', {}).get('chunk_count', 0),
-                    "category_count": stats.get('neo4j', {}).get('category_count', 0)
+                    "category_count": stats.get('neo4j', {}).get('category_count', 0),
+                    "entity_count": stats.get('neo4j', {}).get('entity_count', 0),
+                    "relation_count": stats.get('neo4j', {}).get('relation_count', 0),
                 },
                 "qdrant": {
                     "vector_count": stats.get('qdrant', {}).get('vector_count', 0),
@@ -361,7 +363,8 @@ class GraphRAGMCPTool:
                 },
                 "total": {
                     "document_count": stats.get('neo4j', {}).get('document_count', 0),
-                    "chunk_count": stats.get('neo4j', {}).get('chunk_count', 0)
+                    "chunk_count": stats.get('neo4j', {}).get('chunk_count', 0),
+                    "entity_count": stats.get('neo4j', {}).get('entity_count', 0),
                 }
             }
             
@@ -375,6 +378,28 @@ class GraphRAGMCPTool:
                 "total": {}
             }
     
+    def search_entities(self, query: str, limit: int = 10) -> Dict[str, Any]:
+        """Search for entities by name."""
+        try:
+            logger.info(f"MCP Search Entities: '{query}'")
+            results = self.query_engine.entity_search(query, limit)
+            return {"entities": results, "count": len(results)}
+        except Exception as e:
+            logger.error(f"Error searching entities: {str(e)}")
+            return {"error": str(e), "entities": []}
+
+    def get_entity_graph(self, entity_name: str) -> Dict[str, Any]:
+        """Get an entity and its relationship graph."""
+        try:
+            logger.info(f"MCP Get Entity Graph: '{entity_name}'")
+            result = self.query_engine.get_entity_graph(entity_name)
+            if not result:
+                return {"error": f"Entity not found: {entity_name}", "entity": None}
+            return {"entity": result}
+        except Exception as e:
+            logger.error(f"Error getting entity graph: {str(e)}")
+            return {"error": str(e), "entity": None}
+
     def close(self):
         """Close all connections and free resources"""
         try:
@@ -426,12 +451,22 @@ class GraphRAGMCPTool:
                 return self.get_categories()
             elif action == "get_statistics":
                 return self.get_statistics()
+            elif action == "search_entities":
+                return self.search_entities(
+                    query=params.get('query', ''),
+                    limit=params.get('limit', 10)
+                )
+            elif action == "get_entity_graph":
+                return self.get_entity_graph(
+                    entity_name=params.get('entity_name', '')
+                )
             else:
                 return {
                     "error": f"Unknown action: {action}",
                     "available_actions": [
-                        "search", "get_document", "expand_context", 
-                        "get_categories", "get_statistics"
+                        "search", "get_document", "expand_context",
+                        "get_categories", "get_statistics",
+                        "search_entities", "get_entity_graph"
                     ]
                 }
         except Exception as e:

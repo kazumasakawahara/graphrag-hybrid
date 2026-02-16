@@ -67,7 +67,12 @@ class Neo4jManager:
             """
             CREATE CONSTRAINT chunk_id IF NOT EXISTS
             FOR (c:Chunk) REQUIRE c.id IS UNIQUE
+            """,
+            # Entity uniqueness constraint (name is the unique key)
             """
+            CREATE CONSTRAINT entity_name IF NOT EXISTS
+            FOR (e:Entity) REQUIRE e.name IS UNIQUE
+            """,
         ]
         
         try:
@@ -302,6 +307,161 @@ class Neo4jManager:
             logger.error(f"Error getting all categories: {str(e)}")
             return []
             
+    def import_entities(self, extraction_result):
+        """Import extracted entities and relationships into Neo4j.
+
+        Args:
+            extraction_result: Dict with 'entities', 'relations', 'chunk_entity_map' keys.
+        """
+        entities = extraction_result.get("entities", [])
+        relations = extraction_result.get("relations", [])
+        chunk_entity_map = extraction_result.get("chunk_entity_map", [])
+
+        if not entities:
+            return
+
+        logger.info(
+            f"Importing {len(entities)} entities, {len(relations)} relations, "
+            f"{len(chunk_entity_map)} chunk-entity links to Neo4j"
+        )
+
+        try:
+            with self.driver.session(database=self.database) as session:
+                # 1. Create Entity nodes
+                session.run("""
+                UNWIND $entities AS ent
+                MERGE (e:Entity {name: ent.name})
+                SET e.type = ent.type,
+                    e.description = ent.description
+                """, {"entities": entities})
+
+                # 2. Create MENTIONS relationships (Chunk -> Entity)
+                session.run("""
+                UNWIND $mappings AS m
+                MATCH (c:Chunk {id: m.chunk_id})
+                MATCH (e:Entity {name: m.entity_name})
+                MERGE (c)-[:MENTIONS]->(e)
+                """, {"mappings": chunk_entity_map})
+
+                # 3. Create APPEARS_IN relationships (Entity -> Document)
+                session.run("""
+                UNWIND $mappings AS m
+                MATCH (e:Entity {name: m.entity_name})
+                MATCH (d:Document {id: m.doc_id})
+                MERGE (e)-[:APPEARS_IN]->(d)
+                """, {"mappings": chunk_entity_map})
+
+                # 4. Create RELATES_TO relationships (Entity -> Entity)
+                if relations:
+                    session.run("""
+                    UNWIND $relations AS rel
+                    MATCH (src:Entity {name: rel.source})
+                    MATCH (tgt:Entity {name: rel.target})
+                    MERGE (src)-[r:RELATES_TO {type: rel.relation}]->(tgt)
+                    """, {"relations": relations})
+
+            logger.info("Entities imported successfully")
+        except Exception as e:
+            logger.error(f"Error importing entities: {str(e)}")
+            raise
+
+    def search_by_entity(self, entity_name, limit=10):
+        """Search for chunks and documents that mention an entity."""
+        try:
+            with self.driver.session(database=self.database) as session:
+                result = session.run("""
+                MATCH (e:Entity)
+                WHERE toLower(e.name) CONTAINS toLower($name)
+                OPTIONAL MATCH (c:Chunk)-[:MENTIONS]->(e)
+                OPTIONAL MATCH (d:Document)-[:HAS_CHUNK]->(c)
+                RETURN e.name AS entity_name, e.type AS entity_type,
+                       e.description AS entity_description,
+                       collect(DISTINCT {
+                           chunk_id: c.id,
+                           text: c.text,
+                           doc_id: d.id,
+                           doc_title: d.title
+                       })[0..$limit] AS mentions
+                LIMIT $limit
+                """, {"name": entity_name, "limit": limit})
+
+                return [dict(record) for record in result]
+        except Exception as e:
+            logger.error(f"Error searching by entity: {str(e)}")
+            return []
+
+    def get_entity_graph(self, entity_name, depth=1):
+        """Get an entity and its related entities."""
+        try:
+            with self.driver.session(database=self.database) as session:
+                result = session.run("""
+                MATCH (e:Entity)
+                WHERE toLower(e.name) = toLower($name)
+                OPTIONAL MATCH (e)-[r:RELATES_TO]-(related:Entity)
+                OPTIONAL MATCH (e)-[:APPEARS_IN]->(d:Document)
+                RETURN e.name AS name, e.type AS type, e.description AS description,
+                       collect(DISTINCT {
+                           name: related.name,
+                           type: related.type,
+                           relation: r.type
+                       }) AS related_entities,
+                       collect(DISTINCT {
+                           id: d.id,
+                           title: d.title
+                       }) AS documents
+                """, {"name": entity_name})
+
+                record = result.single()
+                if record:
+                    return dict(record)
+                return None
+        except Exception as e:
+            logger.error(f"Error getting entity graph: {str(e)}")
+            return None
+
+    def get_all_entities(self, entity_type=None, limit=100):
+        """Get all entities, optionally filtered by type."""
+        try:
+            with self.driver.session(database=self.database) as session:
+                if entity_type:
+                    result = session.run("""
+                    MATCH (e:Entity {type: $type})
+                    RETURN e.name AS name, e.type AS type, e.description AS description
+                    ORDER BY e.name
+                    LIMIT $limit
+                    """, {"type": entity_type, "limit": limit})
+                else:
+                    result = session.run("""
+                    MATCH (e:Entity)
+                    RETURN e.name AS name, e.type AS type, e.description AS description
+                    ORDER BY e.name
+                    LIMIT $limit
+                    """, {"limit": limit})
+
+                return [dict(record) for record in result]
+        except Exception as e:
+            logger.error(f"Error getting all entities: {str(e)}")
+            return []
+
+    def get_chunks_by_entity(self, entity_name, limit=10):
+        """Get chunks that mention a specific entity."""
+        try:
+            with self.driver.session(database=self.database) as session:
+                result = session.run("""
+                MATCH (c:Chunk)-[:MENTIONS]->(e:Entity)
+                WHERE toLower(e.name) = toLower($name)
+                MATCH (d:Document)-[:HAS_CHUNK]->(c)
+                RETURN c.id AS chunk_id, c.text AS text, c.doc_id AS doc_id,
+                       d.title AS doc_title
+                ORDER BY c.position
+                LIMIT $limit
+                """, {"name": entity_name, "limit": limit})
+
+                return [dict(record) for record in result]
+        except Exception as e:
+            logger.error(f"Error getting chunks by entity: {str(e)}")
+            return []
+
     def get_statistics(self):
         """Get database statistics"""
         try:
@@ -309,11 +469,15 @@ class Neo4jManager:
                 doc_count = session.run("MATCH (d:Document) RETURN count(d) AS count").single()['count']
                 chunk_count = session.run("MATCH (c:Chunk) RETURN count(c) AS count").single()['count']
                 category_count = session.run("MATCH (d:Document) RETURN count(DISTINCT d.category) AS count").single()['count']
-                
+                entity_count = session.run("MATCH (e:Entity) RETURN count(e) AS count").single()['count']
+                relation_count = session.run("MATCH ()-[r:RELATES_TO]->() RETURN count(r) AS count").single()['count']
+
                 return {
                     'document_count': doc_count,
                     'chunk_count': chunk_count,
-                    'category_count': category_count
+                    'category_count': category_count,
+                    'entity_count': entity_count,
+                    'relation_count': relation_count,
                 }
         except Exception as e:
             logger.error(f"Error getting database statistics: {str(e)}")

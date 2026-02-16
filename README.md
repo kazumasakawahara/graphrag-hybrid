@@ -39,10 +39,13 @@ QDRANT_COLLECTION=document_chunks
 ## 機能
 
 - **ドキュメント処理**: YAML フロントマター付きの Markdown ドキュメントの解析とチャンク分割
+- **PDF 対応**: pymupdf4llm による PDF からの Markdown 変換
+- **AIエンティティ抽出**: Gemini 2.5 Flash を使用したエンティティ・関係性の自動抽出
 - **セマンティック検索**: トランスフォーマーモデルを使用したベクトルベースの類似度検索
 - **グラフベースナビゲーション**: Neo4j グラフデータベースを使用したドキュメント関係の探索
-- **ハイブリッド検索**: セマンティック検索とグラフベースアプローチの組み合わせによる高精度な結果
-- **外部連携**: 外部システムとの統合に対応したツール
+- **ハイブリッド検索**: セマンティック (60%) + グラフ (20%) + エンティティ (20%) の3軸検索
+- **Web UI**: Streamlit によるドキュメント管理・エンティティ閲覧画面
+- **外部連携**: MCP プロトコルによる AI エージェントとの統合
 
 ## プロジェクト構成
 
@@ -56,7 +59,9 @@ graphrag/
 │   │   └── qdrant_manager.py     # Qdrant ベクトルデータベースマネージャー
 │   └── processors/               # データプロセッサー
 │       ├── document_processor.py # ドキュメント解析・チャンク分割
-│       └── embedding_processor.py # テキスト埋め込み生成
+│       ├── embedding_processor.py # テキスト埋め込み生成
+│       ├── entity_extractor.py   # Gemini によるエンティティ抽出
+│       └── pdf_processor.py      # PDF → Markdown 変換
 ├── scripts/                      # ユーティリティスクリプト
 │   ├── import_docs.py            # ドキュメントインポートスクリプト
 │   └── query_demo.py             # クエリデモスクリプト
@@ -246,6 +251,11 @@ function trackEvent(eventName, properties) {
 
 - **埋め込み設定**: テキスト埋め込みのモデル設定
 - **チャンク設定**: ドキュメントチャンク分割パラメータ
+
+- **Gemini API 設定**（エンティティ抽出用、任意）:
+  - `GEMINI_API_KEY=your_api_key_here`
+  - [Google AI Studio](https://aistudio.google.com/) で API キーを取得
+  - 未設定の場合、エンティティ抽出はスキップされ、既存機能は正常に動作します
 
 ## 検証
 

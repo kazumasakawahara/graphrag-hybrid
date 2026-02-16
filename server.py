@@ -239,6 +239,46 @@ def ingest_document(file_path: str) -> str:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
+@mcp.tool
+def search_entities(
+    query: str,
+    limit: int = 10,
+) -> str:
+    """エンティティ名で検索します。
+
+    ドキュメントから抽出されたエンティティ（人物、組織、概念、技術など）を
+    名前で検索し、関連するチャンクとドキュメントを返します。
+
+    Args:
+        query: エンティティ名（部分一致）
+        limit: 返す結果の最大数（デフォルト: 10）
+
+    Returns:
+        エンティティ検索結果のJSON文字列
+    """
+    tool = _get_tool()
+    result = tool.search_entities(query=query, limit=limit)
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+def get_entity_graph(entity_name: str) -> str:
+    """エンティティの関連グラフを取得します。
+
+    指定されたエンティティと、それに関連するエンティティや
+    出現するドキュメントの情報を返します。
+
+    Args:
+        entity_name: エンティティ名（完全一致）
+
+    Returns:
+        エンティティグラフ情報のJSON文字列
+    """
+    tool = _get_tool()
+    result = tool.get_entity_graph(entity_name=entity_name)
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
 # === MCPリソース定義 ===
 
 @mcp.resource("graphrag://status")
