@@ -5,18 +5,15 @@ Qdrant vector database manager for GraphRAG
 """
 
 import logging
-import uuid
-from typing import List, Dict, Any, Optional, Union
-import numpy as np
+
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from qdrant_client.http.exceptions import UnexpectedResponse
 
 logger = logging.getLogger(__name__)
 
 class QdrantManager:
     """Manager for Qdrant vector database operations"""
-    
+
     def __init__(self, config, embedding_model=None):
         """Initialize Qdrant manager with configuration"""
         self.config = config
@@ -28,7 +25,7 @@ class QdrantManager:
         self.vector_size = config.get('embedding.vector_size', 768)
         self.embedding_model = embedding_model
         self.client = None
-        
+
     def connect(self):
         """Connect to Qdrant server"""
         try:
@@ -46,19 +43,19 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Failed to connect to Qdrant: {str(e)}")
             raise
-    
+
     def close(self):
         """Close Qdrant connection"""
         if self.client:
             self.client = None
             logger.info("Qdrant connection released")
-    
+
     def create_collection(self, recreate=False):
         """Create or recreate the vector collection"""
         try:
             collections = self.client.get_collections()
             exists = any(c.name == self.collection_name for c in collections.collections)
-            
+
             if exists:
                 if recreate:
                     logger.warning(f"Deleting existing collection: {self.collection_name}")
@@ -66,7 +63,7 @@ class QdrantManager:
                 else:
                     logger.info(f"Collection {self.collection_name} already exists")
                     return True
-            
+
             logger.info(f"Creating collection: {self.collection_name} with vector size {self.vector_size}")
             self.client.create_collection(
                 collection_name=self.collection_name,
@@ -75,7 +72,7 @@ class QdrantManager:
                     distance=models.Distance.COSINE
                 )
             )
-            
+
             index_fields = ["category", "doc_id"]
             for field in index_fields:
                 self.client.create_payload_index(
@@ -83,13 +80,13 @@ class QdrantManager:
                     field_name=field,
                     field_schema=models.PayloadSchemaType.KEYWORD
                 )
-            
+
             logger.info(f"Collection {self.collection_name} created with indexes")
             return True
         except Exception as e:
             logger.error(f"Error creating collection: {str(e)}")
             raise
-    
+
     def get_collection_info(self):
         """Get information about the collection"""
         try:
@@ -97,7 +94,7 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Error getting collection info: {str(e)}")
             return None
-    
+
     def clear_collection(self):
         """Clear all vectors from the collection"""
         try:
@@ -108,20 +105,20 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Error clearing collection: {str(e)}")
             raise
-    
+
     def import_chunks(self, chunks):
         """Import document chunks into Qdrant collection.
-        
+
         E5モデル使用時: "passage: " プレフィックスが自動付与される。
         """
         if not self.embedding_model:
             raise ValueError("Embedding model is required for importing chunks")
-        
+
         logger.info(f"Importing {len(chunks)} chunks into Qdrant")
-        
+
         batch_size = 100
         points = []
-        
+
         try:
             for i, chunk in enumerate(chunks):
                 try:
@@ -130,43 +127,43 @@ class QdrantManager:
                 except Exception as e:
                     logger.error(f"Error generating embedding for chunk {i}: {str(e)}")
                     continue
-                
+
                 point_id = chunk['id']
-                
+
                 payload = {
                     'text': chunk['text'],
                     'doc_id': chunk['doc_id'],
                     'position': chunk['position']
                 }
-                
+
                 if 'metadata' in chunk:
                     for key, value in chunk['metadata'].items():
                         if key not in payload and key not in ['text', 'id']:
                             payload[key] = value
-                
+
                 point = models.PointStruct(
                     id=point_id,
                     vector=embedding,
                     payload=payload
                 )
-                
+
                 points.append(point)
-                
+
                 if len(points) >= batch_size:
                     self._upload_batch(points)
                     logger.debug(f"Uploaded batch of {len(points)} vectors. Progress: {i+1}/{len(chunks)}")
                     points = []
-            
+
             if points:
                 self._upload_batch(points)
                 logger.debug(f"Uploaded final batch of {len(points)} vectors")
-            
+
             logger.info(f"Successfully imported {len(chunks)} chunks into Qdrant")
             return True
         except Exception as e:
             logger.error(f"Error importing chunks to Qdrant: {str(e)}")
             raise
-    
+
     def _upload_batch(self, points):
         """Upload a batch of points to Qdrant"""
         try:
@@ -177,24 +174,24 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Error uploading batch to Qdrant: {str(e)}")
             raise
-    
+
     def search(self, query_text, limit=5, filter_conditions=None):
         """Search for similar vectors in Qdrant.
-        
+
         E5モデル使用時: "query: " プレフィックスが自動付与される。
         """
         if not self.embedding_model:
             raise ValueError("Embedding model is required for search")
-        
+
         try:
             logger.info(f"Searching for: '{query_text}' with limit {limit}")
             # query embedding（検索クエリ用）を使用
             query_vector = self.embedding_model.get_query_embedding(query_text)
-            
+
             search_filter = None
             if filter_conditions:
                 search_filter = self._prepare_filter(filter_conditions)
-            
+
             try:
                 search_result = self.client.query_points(
                     collection_name=self.collection_name,
@@ -211,7 +208,7 @@ class QdrantManager:
                     query_filter=search_filter
                 )
                 scored_points = search_result
-            
+
             results = []
             for scored_point in scored_points:
                 result = {
@@ -221,54 +218,54 @@ class QdrantManager:
                     'doc_id': scored_point.payload.get('doc_id', ''),
                     'position': scored_point.payload.get('position', 0),
                 }
-                
+
                 for key, value in scored_point.payload.items():
                     if key not in result and key not in ['text']:
                         result[key] = value
-                
+
                 results.append(result)
-            
+
             logger.info(f"Found {len(results)} results for query")
             return results
         except Exception as e:
             logger.error(f"Error searching in Qdrant: {str(e)}")
             return []
-    
+
     def _prepare_filter(self, filter_conditions):
         """Prepare Qdrant filter from conditions"""
         if not filter_conditions:
             return None
-        
+
         try:
             if isinstance(filter_conditions, dict):
                 filter_parts = []
-                
+
                 for key, value in filter_conditions.items():
                     if isinstance(value, list):
                         filter_parts.append(
                             models.FieldCondition(
-                                key=key, 
+                                key=key,
                                 match=models.MatchAny(any=value)
                             )
                         )
                     else:
                         filter_parts.append(
                             models.FieldCondition(
-                                key=key, 
+                                key=key,
                                 match=models.MatchValue(value=value)
                             )
                         )
-                
+
                 if len(filter_parts) > 1:
                     return models.Filter(must=filter_parts)
                 elif len(filter_parts) == 1:
                     return models.Filter(must=[filter_parts[0]])
-            
+
             return filter_conditions
-            
+
         except Exception as e:
             logger.warning(f"Error preparing filter with newer format, trying legacy: {str(e)}")
-            
+
             try:
                 if isinstance(filter_conditions, dict):
                     conditions = []
@@ -283,7 +280,7 @@ class QdrantManager:
                                 "key": key,
                                 "match": {"value": value}
                             })
-                    
+
                     if len(conditions) > 1:
                         return {"must": conditions}
                     elif len(conditions) == 1:
@@ -292,14 +289,14 @@ class QdrantManager:
             except Exception as e2:
                 logger.error(f"Error preparing filter with legacy format: {str(e2)}")
                 return None
-    
+
     def get_count(self, filter_conditions=None):
         """Get the count of vectors in the collection"""
         try:
             search_filter = None
             if filter_conditions:
                 search_filter = self._prepare_filter(filter_conditions)
-            
+
             count = self.client.count(
                 collection_name=self.collection_name,
                 count_filter=search_filter
@@ -308,7 +305,7 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Error getting count from Qdrant: {str(e)}")
             return 0
-    
+
     def get_by_id(self, chunk_id):
         """Get a specific vector by ID"""
         try:
@@ -317,7 +314,7 @@ class QdrantManager:
                 ids=[chunk_id],
                 with_vectors=True
             )
-            
+
             if points and len(points) > 0:
                 point = points[0]
                 result = {
@@ -327,29 +324,29 @@ class QdrantManager:
                     'doc_id': point.payload.get('doc_id', ''),
                     'position': point.payload.get('position', 0),
                 }
-                
+
                 for key, value in point.payload.items():
                     if key not in result and key not in ['text']:
                         result[key] = value
-                
+
                 return result
             return None
         except Exception as e:
             logger.error(f"Error retrieving point from Qdrant: {str(e)}")
             return None
-    
+
     def get_by_filter(self, filter_conditions, limit=100):
         """Get vectors by filter conditions"""
         try:
             search_filter = self._prepare_filter(filter_conditions)
-            
+
             points = self.client.scroll(
                 collection_name=self.collection_name,
                 scroll_filter=search_filter,
                 limit=limit,
                 with_vectors=False
             )[0]
-            
+
             results = []
             for point in points:
                 result = {
@@ -358,18 +355,18 @@ class QdrantManager:
                     'doc_id': point.payload.get('doc_id', ''),
                     'position': point.payload.get('position', 0),
                 }
-                
+
                 for key, value in point.payload.items():
                     if key not in result and key not in ['text']:
                         result[key] = value
-                
+
                 results.append(result)
-            
+
             return results
         except Exception as e:
             logger.error(f"Error getting vectors by filter from Qdrant: {str(e)}")
             return []
-    
+
     def get_document_chunks(self, doc_id):
         """Get all chunks for a specific document ordered by position"""
         try:
@@ -379,18 +376,18 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Error getting document chunks from Qdrant: {str(e)}")
             return []
-    
+
     def get_statistics(self):
         """Get vector collection statistics"""
         try:
             collection_info = self.client.get_collection(self.collection_name)
-            
+
             total_vectors = 0
             if hasattr(collection_info, 'points_count') and collection_info.points_count is not None:
                 total_vectors = collection_info.points_count
             elif hasattr(collection_info, 'vectors_count') and collection_info.vectors_count is not None:
                 total_vectors = collection_info.vectors_count
-            
+
             sample_size = min(1000, total_vectors)
             if sample_size > 0:
                 sample = self.client.scroll(
@@ -398,19 +395,19 @@ class QdrantManager:
                     limit=sample_size,
                     with_vectors=False
                 )[0]
-                
+
                 doc_ids = set()
                 for point in sample:
                     doc_id = point.payload.get('doc_id')
                     if doc_id:
                         doc_ids.add(doc_id)
-                
+
                 estimated_docs = len(doc_ids)
                 if sample_size < total_vectors:
                     estimated_docs = int(len(doc_ids) / sample_size * total_vectors)
             else:
                 estimated_docs = 0
-            
+
             vector_size = self.vector_size
             distance_name = 'COSINE'
             try:
@@ -422,7 +419,7 @@ class QdrantManager:
                     distance_name = dist.name if hasattr(dist, 'name') else str(dist)
             except (AttributeError, TypeError):
                 pass
-            
+
             return {
                 'vector_count': total_vectors,
                 'estimated_document_count': estimated_docs,

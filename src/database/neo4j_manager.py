@@ -3,14 +3,15 @@ Neo4j database manager for GraphRAG
 """
 
 import logging
+
 from neo4j import GraphDatabase
-from neo4j.exceptions import ServiceUnavailable, AuthError
+from neo4j.exceptions import AuthError, ServiceUnavailable
 
 logger = logging.getLogger(__name__)
 
 class Neo4jManager:
     """Manager for Neo4j document graph operations"""
-    
+
     def __init__(self, config):
         """Initialize Neo4j manager with configuration"""
         self.config = config
@@ -19,13 +20,13 @@ class Neo4jManager:
         self.password = config.get('neo4j.password', 'password')
         self.database = config.get('neo4j.database', 'neo4j')
         self.driver = None
-        
+
     def connect(self):
         """Connect to Neo4j database"""
         try:
             logger.info(f"Connecting to Neo4j at {self.uri}")
             self.driver = GraphDatabase.driver(
-                self.uri, 
+                self.uri,
                 auth=(self.username, self.password)
             )
             # Test connection
@@ -45,17 +46,17 @@ class Neo4jManager:
         except Exception as e:
             logger.error(f"Failed to connect to Neo4j: {str(e)}")
             raise
-            
+
     def close(self):
         """Close the Neo4j connection"""
         if self.driver:
             self.driver.close()
             logger.info("Neo4j connection closed")
-            
+
     def setup_schema(self):
         """Set up the document graph schema with constraints"""
         logger.info("Setting up Neo4j schema with constraints")
-        
+
         # Queries to create constraints
         constraints = [
             # Document uniqueness constraint
@@ -74,7 +75,7 @@ class Neo4jManager:
             FOR (e:Entity) REQUIRE e.name IS UNIQUE
             """,
         ]
-        
+
         try:
             with self.driver.session(database=self.database) as session:
                 for constraint in constraints:
@@ -84,11 +85,11 @@ class Neo4jManager:
         except Exception as e:
             logger.error(f"Error setting up Neo4j schema: {str(e)}")
             raise
-            
+
     def clear_database(self):
         """Clear all nodes and relationships from the database"""
         logger.warning("Clearing all data from Neo4j database")
-        
+
         try:
             with self.driver.session(database=self.database) as session:
                 session.run("MATCH (n) DETACH DELETE n")
@@ -97,15 +98,15 @@ class Neo4jManager:
         except Exception as e:
             logger.error(f"Error clearing Neo4j database: {str(e)}")
             raise
-            
+
     def import_documents(self, documents, chunks):
         """Import documents and chunks into Neo4j"""
         logger.info(f"Importing {len(documents)} documents with {len(chunks)} chunks to Neo4j")
-        
+
         # Batch processing parameters
         doc_batch_size = 50
         chunk_batch_size = 200
-        
+
         try:
             with self.driver.session(database=self.database) as session:
                 # Import documents in batches
@@ -113,13 +114,13 @@ class Neo4jManager:
                     batch = documents[i:i+doc_batch_size]
                     self._create_documents_batch(session, batch)
                     logger.debug(f"Imported document batch {i//doc_batch_size + 1}")
-                
+
                 # Import chunks in batches
                 for i in range(0, len(chunks), chunk_batch_size):
                     batch = chunks[i:i+chunk_batch_size]
                     self._create_chunks_batch(session, batch)
                     logger.debug(f"Imported chunk batch {i//chunk_batch_size + 1}")
-                
+
                 # Create relationships between documents based on shared category
                 session.run("""
                 MATCH (d1:Document), (d2:Document)
@@ -131,12 +132,12 @@ class Neo4jManager:
         except Exception as e:
             logger.error(f"Error importing documents to Neo4j: {str(e)}")
             raise
-            
+
     def _create_documents_batch(self, session, documents):
         """Create document nodes in batch"""
         # Prepare parameters for batch creation
         params = {'documents': []}
-        
+
         for doc in documents:
             # Prepare document properties
             doc_data = {
@@ -145,26 +146,26 @@ class Neo4jManager:
                 'category': doc.get('category', ''),
                 'path': doc.get('path', '')
             }
-            
+
             # Add optional properties if they exist
             for key in ['author', 'date', 'tags', 'description']:
                 if key in doc:
                     doc_data[key] = doc[key]
-                    
+
             params['documents'].append(doc_data)
-        
+
         # Execute batch creation
         session.run("""
         UNWIND $documents AS doc
         MERGE (d:Document {id: doc.id})
         SET d += doc
         """, params)
-        
+
     def _create_chunks_batch(self, session, chunks):
         """Create chunk nodes and relationships in batch"""
         # Prepare parameters for batch creation
         params = {'chunks': []}
-        
+
         for chunk in chunks:
             # Prepare chunk properties
             chunk_data = {
@@ -173,11 +174,11 @@ class Neo4jManager:
                 'doc_id': chunk['doc_id'],
                 'position': chunk['position']
             }
-            
+
             params['chunks'].append(chunk_data)
-        
+
         # Execute batch creation with relationships
-        session.run("""                    
+        session.run("""
         UNWIND $chunks AS chunk
         MERGE (c:Chunk {id: chunk.id})
         SET c.text = chunk.text,
@@ -198,7 +199,7 @@ class Neo4jManager:
                 MATCH (d:Document {id: $id})
                 RETURN d
                 """, {'id': doc_id})
-                
+
                 record = result.single()
                 if record:
                     return dict(record['d'])
@@ -206,7 +207,7 @@ class Neo4jManager:
         except Exception as e:
             logger.error(f"Error getting document by ID: {str(e)}")
             return None
-            
+
     def get_document_chunks(self, doc_id):
         """Get all chunks for a document ordered by position"""
         try:
@@ -216,12 +217,12 @@ class Neo4jManager:
                 RETURN c
                 ORDER BY c.position
                 """, {'id': doc_id})
-                
+
                 return [dict(record['c']) for record in result]
         except Exception as e:
             logger.error(f"Error getting document chunks: {str(e)}")
             return []
-            
+
     def get_related_documents(self, doc_id, limit=5):
         """Get related documents by category relationship"""
         try:
@@ -231,12 +232,12 @@ class Neo4jManager:
                 RETURN related
                 LIMIT $limit
                 """, {'id': doc_id, 'limit': limit})
-                
+
                 return [dict(record['related']) for record in result]
         except Exception as e:
             logger.error(f"Error getting related documents: {str(e)}")
             return []
-            
+
     def get_document_by_chunk_id(self, chunk_id):
         """Get the parent document of a chunk"""
         try:
@@ -245,7 +246,7 @@ class Neo4jManager:
                 MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk {id: $id})
                 RETURN d
                 """, {'id': chunk_id})
-                
+
                 record = result.single()
                 if record:
                     return dict(record['d'])
@@ -253,7 +254,7 @@ class Neo4jManager:
         except Exception as e:
             logger.error(f"Error getting document by chunk ID: {str(e)}")
             return None
-            
+
     def get_chunk_context(self, chunk_id, context_size=1):
         """Get surrounding chunks for context"""
         try:
@@ -276,7 +277,7 @@ class Neo4jManager:
         except Exception as e:
             logger.error(f"Error getting chunk context: {str(e)}")
             return None
-            
+
     def search_by_category(self, category, limit=10):
         """Search for documents by category"""
         try:
@@ -287,12 +288,12 @@ class Neo4jManager:
                 RETURN d
                 LIMIT $limit
                 """, {'category': category, 'limit': limit})
-                
+
                 return [dict(record['d']) for record in result]
         except Exception as e:
             logger.error(f"Error searching by category: {str(e)}")
             return []
-            
+
     def get_all_categories(self):
         """Get all document categories"""
         try:
@@ -301,12 +302,12 @@ class Neo4jManager:
                 MATCH (d:Document)
                 RETURN DISTINCT d.category AS category
                 """)
-                
+
                 return [record['category'] for record in result]
         except Exception as e:
             logger.error(f"Error getting all categories: {str(e)}")
             return []
-            
+
     def import_entities(self, extraction_result):
         """Import extracted entities and relationships into Neo4j.
 

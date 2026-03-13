@@ -3,55 +3,54 @@ Query engine for hybrid Neo4j and Qdrant search
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Union
-import uuid
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 class QueryEngine:
     """Hybrid query engine for Neo4j and Qdrant databases"""
-    
+
     def __init__(self, neo4j_manager, qdrant_manager, embedding_processor=None):
         """Initialize with database managers"""
         self.neo4j = neo4j_manager
         self.qdrant = qdrant_manager
         self.embedding_processor = embedding_processor
-        
+
         # Verify connections
         self._verify_connections()
-    
+
     def _verify_connections(self):
         """Verify database connections"""
         if not self.neo4j.driver:
             logger.warning("Neo4j connection not established, attempting to connect")
             self.neo4j.connect()
-            
+
         if not self.qdrant.client:
             logger.warning("Qdrant connection not established, attempting to connect")
             self.qdrant.connect()
-    
+
     def semantic_search(self, query: str, limit: int = 5, category: Optional[str] = None) -> List[Dict[Any, Any]]:
         """Perform semantic search using Qdrant"""
         logger.info(f"Semantic search: '{query}' (limit: {limit}, category: {category})")
-        
+
         # Set up filter if category is provided
         filter_conditions = None
         if category:
             filter_conditions = {'category': category}
-            
+
         # Perform vector search
         try:
             if not self.embedding_processor:
                 logger.error("No embedding processor available for semantic search")
                 return []
-                
+
             # Use Qdrant for vector search
             search_results = self.qdrant.search(
                 query_text=query,
                 limit=limit,
                 filter_conditions=filter_conditions
             )
-            
+
             # Enhance results with document information
             enhanced_results = []
             for result in search_results:
@@ -59,7 +58,7 @@ class QueryEngine:
                 doc_info = self.neo4j.get_document_by_id(result.get('doc_id'))
                 if doc_info:
                     result['document'] = doc_info
-                    
+
                 # Get chunk context if needed
                 chunk_context = self.neo4j.get_chunk_context(result['id'], context_size=1)
                 if chunk_context:
@@ -67,18 +66,18 @@ class QueryEngine:
                         'previous': [c.get('text', '') for c in chunk_context.get('previous', [])],
                         'next': [c.get('text', '') for c in chunk_context.get('next', [])]
                     }
-                
+
                 enhanced_results.append(result)
-            
+
             return enhanced_results
         except Exception as e:
             logger.error(f"Error in semantic search: {str(e)}")
             return []
-    
+
     def category_search(self, category: str, limit: int = 10) -> List[Dict[Any, Any]]:
         """Search for documents by category using Neo4j"""
         logger.info(f"Category search: '{category}' (limit: {limit})")
-        
+
         try:
             # Use Neo4j for category search
             results = self.neo4j.search_by_category(category, limit)
@@ -86,27 +85,27 @@ class QueryEngine:
         except Exception as e:
             logger.error(f"Error in category search: {str(e)}")
             return []
-    
+
     def get_document_with_chunks(self, doc_id: str) -> Dict[Any, Any]:
         """Get document with all its chunks"""
         logger.info(f"Getting document with chunks: {doc_id}")
-        
+
         try:
             # Get document from Neo4j
             document = self.neo4j.get_document_by_id(doc_id)
             if not document:
                 logger.warning(f"Document not found: {doc_id}")
                 return {}
-            
+
             # Get chunks from Neo4j
             chunks = self.neo4j.get_document_chunks(doc_id)
             document['chunks'] = chunks
-            
+
             return document
         except Exception as e:
             logger.error(f"Error getting document with chunks: {str(e)}")
             return {}
-    
+
     def hybrid_search(self, query: str, limit: int = 5, category: Optional[str] = None,
                        semantic_weight: float = 0.6, graph_weight: float = 0.2,
                        entity_weight: float = 0.2) -> List[Dict[Any, Any]]:
@@ -239,37 +238,37 @@ class QueryEngine:
         except Exception as e:
             logger.error(f"Error getting entity graph: {str(e)}")
             return {}
-    
+
     def expand_context(self, chunk_id: str, context_size: int = 2) -> Dict[Any, Any]:
         """Expand context around a specific chunk"""
         logger.info(f"Expanding context for chunk: {chunk_id} (size: {context_size})")
-        
+
         try:
             # Get chunk context from Neo4j
             context = self.neo4j.get_chunk_context(chunk_id, context_size)
             if not context:
                 logger.warning(f"No context found for chunk: {chunk_id}")
                 return {}
-            
+
             # Get document info
             doc_id = None
             if context.get('center'):
-                chunk = context['center']
+                context['center']
                 doc_id = self.neo4j.get_document_by_chunk_id(chunk_id)
                 if doc_id:
                     doc_info = self.neo4j.get_document_by_id(doc_id)
                     if doc_info:
                         context['document'] = doc_info
-            
+
             return context
         except Exception as e:
             logger.error(f"Error expanding context: {str(e)}")
             return {}
-    
+
     def suggest_related(self, doc_id: str, limit: int = 5) -> List[Dict[Any, Any]]:
         """Suggest related documents based on category and graph connections"""
         logger.info(f"Suggesting related documents for: {doc_id} (limit: {limit})")
-        
+
         try:
             # Get related documents from Neo4j
             related = self.neo4j.get_related_documents(doc_id, limit)
@@ -277,29 +276,29 @@ class QueryEngine:
         except Exception as e:
             logger.error(f"Error suggesting related documents: {str(e)}")
             return []
-    
+
     def get_all_categories(self) -> List[str]:
         """Get all available document categories"""
         logger.info("Getting all document categories")
-        
+
         try:
             return self.neo4j.get_all_categories()
         except Exception as e:
             logger.error(f"Error getting categories: {str(e)}")
             return []
-    
+
     def get_statistics(self) -> Dict[Any, Any]:
         """Get statistics from both databases"""
         logger.info("Getting database statistics")
-        
+
         try:
             neo4j_stats = self.neo4j.get_statistics()
             qdrant_stats = self.qdrant.get_statistics()
-            
+
             return {
                 'neo4j': neo4j_stats,
                 'qdrant': qdrant_stats
             }
         except Exception as e:
             logger.error(f"Error getting statistics: {str(e)}")
-            return {} 
+            return {}

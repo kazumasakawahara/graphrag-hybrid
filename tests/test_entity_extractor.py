@@ -5,16 +5,16 @@ methods, Pydantic model validation, and availability checks.
 """
 
 import os
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.processors.entity_extractor import (
     EntityExtractor,
-    ExtractionResult,
     ExtractedEntity,
     ExtractedRelation,
+    ExtractionResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Pydantic model validation

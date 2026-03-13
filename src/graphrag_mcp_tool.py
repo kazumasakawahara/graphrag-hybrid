@@ -1,16 +1,14 @@
 """
 GraphRAG MCP Tool Implementation
 
-This module implements a Model Control Panel (MCP) tool for querying 
+This module implements a Model Control Panel (MCP) tool for querying
 the hybrid Neo4j and Qdrant document retrieval system.
 """
 
 import logging
-import json
-from typing import Dict, List, Optional, Any, Union
-import os
-from dataclasses import dataclass
 import warnings
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 # Import GraphRAG components
 from .config import Config
@@ -37,76 +35,76 @@ class SearchResult:
 class GraphRAGMCPTool:
     """
     GraphRAG Model Control Panel (MCP) Tool
-    
+
     This class implements the MCP Tool interface for the GraphRAG system,
     allowing LLM-based tools to query the document database and retrieve
     relevant information based on user queries.
     """
-    
+
     def __init__(self, config_path: Optional[str] = None):
         """
         Initialize the GraphRAG MCP Tool
-        
+
         Args:
             config_path: Optional path to a configuration file
         """
         # Load configuration
         self.config = Config(config_path)
-        
+
         # Initialize components
         self.neo4j_manager = None
         self.qdrant_manager = None
         self.embedding_processor = None
         self.query_engine = None
-        
+
         # Initialize the system
         self._initialize_system()
-        
+
     def _initialize_system(self):
         """Initialize all system components"""
         try:
             logger.info("Initializing GraphRAG MCP Tool")
-            
+
             # Create embedding processor
             self.embedding_processor = EmbeddingProcessor(self.config)
             self.embedding_processor.load_model()
-            
+
             # Create database managers
             self.neo4j_manager = Neo4jManager(self.config)
             self.neo4j_manager.connect()
-            
+
             self.qdrant_manager = QdrantManager(self.config, self.embedding_processor)
             self.qdrant_manager.connect()
-            
+
             # Create query engine
             self.query_engine = QueryEngine(
                 self.neo4j_manager,
                 self.qdrant_manager,
                 self.embedding_processor
             )
-            
+
             logger.info("GraphRAG MCP Tool initialized successfully")
         except Exception as e:
             logger.error(f"Error initializing GraphRAG MCP Tool: {str(e)}")
             raise
-            
-    def search(self, query: str, limit: int = 5, category: Optional[str] = None, 
+
+    def search(self, query: str, limit: int = 5, category: Optional[str] = None,
                search_type: str = "hybrid") -> Dict[str, Any]:
         """
         Search for documents based on a query
-        
+
         Args:
             query: The search query text
             limit: Maximum number of results to return (default: 5)
             category: Optional category to filter results
             search_type: Type of search to perform ('semantic', 'hybrid', or 'category')
-            
+
         Returns:
             Dict containing search results and metadata
         """
         try:
             logger.info(f"MCP Search: '{query}' ({search_type}, limit: {limit}, category: {category})")
-            
+
             results = []
             if search_type == "semantic":
                 # Semantic search only (vector similarity)
@@ -119,10 +117,10 @@ class GraphRAGMCPTool:
             else:
                 # Default to hybrid search
                 results = self.query_engine.hybrid_search(query, limit, category)
-                
+
             # Format the results for MCP
             formatted_results = self._format_search_results(results, query, search_type)
-            
+
             return formatted_results
         except Exception as e:
             logger.error(f"Error in MCP search: {str(e)}")
@@ -135,7 +133,7 @@ class GraphRAGMCPTool:
                     "search_type": search_type
                 }
             }
-            
+
     def _format_search_results(
         self, results: List[Dict[Any, Any]], query: str, search_type: str = "hybrid"
     ) -> Dict[str, Any]:
@@ -184,28 +182,28 @@ class GraphRAGMCPTool:
                 "search_type": search_type,
             }
         }
-        
+
     def get_document(self, doc_id: str) -> Dict[str, Any]:
         """
         Get a complete document by ID
-        
+
         Args:
             doc_id: The document ID to retrieve
-            
+
         Returns:
             Dict containing the document and its chunks
         """
         try:
             logger.info(f"MCP Get Document: {doc_id}")
-            
+
             document = self.query_engine.get_document_with_chunks(doc_id)
-            
+
             if not document:
                 return {
                     "error": f"Document not found: {doc_id}",
                     "document": None
                 }
-            
+
             # Format document for MCP
             formatted_doc = {
                 "id": document.get('id', ''),
@@ -213,13 +211,13 @@ class GraphRAGMCPTool:
                 "category": document.get('category', 'Uncategorized'),
                 "chunks": []
             }
-            
+
             # Add chunks
             if 'chunks' in document and document['chunks']:
                 chunk_texts = []
                 for chunk in document['chunks']:
                     chunk_texts.append(chunk.get('text', ''))
-                
+
                 # Add full text and chunks
                 formatted_doc['full_text'] = "\n\n".join(chunk_texts)
                 formatted_doc['chunks'] = [
@@ -230,7 +228,7 @@ class GraphRAGMCPTool:
                     }
                     for chunk in document['chunks']
                 ]
-            
+
             return {
                 "document": formatted_doc,
                 "related": self.query_engine.suggest_related(doc_id)
@@ -241,29 +239,29 @@ class GraphRAGMCPTool:
                 "error": str(e),
                 "document": None
             }
-            
+
     def expand_context(self, chunk_id: str, context_size: int = 2) -> Dict[str, Any]:
         """
         Expand context around a specific chunk
-        
+
         Args:
             chunk_id: The chunk ID to get context for
             context_size: Number of chunks before and after to include
-            
+
         Returns:
             Dict containing the expanded context
         """
         try:
             logger.info(f"MCP Expand Context: {chunk_id} (size: {context_size})")
-            
+
             context = self.query_engine.expand_context(chunk_id, context_size)
-            
+
             if not context:
                 return {
                     "error": f"Chunk not found: {chunk_id}",
                     "context": None
                 }
-            
+
             # Format context for MCP
             formatted_context = {
                 "chunk": {
@@ -274,7 +272,7 @@ class GraphRAGMCPTool:
                 "next": [],
                 "document": context.get('document', {})
             }
-            
+
             # Add previous and next chunks
             if 'previous' in context:
                 formatted_context['previous'] = [
@@ -285,7 +283,7 @@ class GraphRAGMCPTool:
                     }
                     for chunk in context['previous']
                 ]
-            
+
             if 'next' in context:
                 formatted_context['next'] = [
                     {
@@ -295,21 +293,21 @@ class GraphRAGMCPTool:
                     }
                     for chunk in context['next']
                 ]
-            
+
             # Add full context text
             context_text = []
             if formatted_context['previous']:
                 for prev in formatted_context['previous']:
                     context_text.append(prev['text'])
-            
+
             context_text.append(formatted_context['chunk']['text'])
-            
+
             if formatted_context['next']:
                 for next_chunk in formatted_context['next']:
                     context_text.append(next_chunk['text'])
-            
+
             formatted_context['full_text'] = "\n\n".join(context_text)
-            
+
             return {
                 "context": formatted_context
             }
@@ -319,19 +317,19 @@ class GraphRAGMCPTool:
                 "error": str(e),
                 "context": None
             }
-    
+
     def get_categories(self) -> Dict[str, Any]:
         """
         Get all document categories
-        
+
         Returns:
             Dict containing list of categories
         """
         try:
             logger.info("MCP Get Categories")
-            
+
             categories = self.query_engine.get_all_categories()
-            
+
             return {
                 "categories": categories,
                 "count": len(categories)
@@ -342,19 +340,19 @@ class GraphRAGMCPTool:
                 "error": str(e),
                 "categories": []
             }
-    
+
     def get_statistics(self) -> Dict[str, Any]:
         """
         Get system statistics
-        
+
         Returns:
             Dict containing system statistics
         """
         try:
             logger.info("MCP Get Statistics")
-            
+
             stats = self.query_engine.get_statistics()
-            
+
             # Format statistics for MCP
             formatted_stats = {
                 "neo4j": {
@@ -374,7 +372,7 @@ class GraphRAGMCPTool:
                     "entity_count": stats.get('neo4j', {}).get('entity_count', 0),
                 }
             }
-            
+
             return formatted_stats
         except Exception as e:
             logger.error(f"Error getting statistics: {str(e)}")
@@ -384,7 +382,7 @@ class GraphRAGMCPTool:
                 "qdrant": {},
                 "total": {}
             }
-    
+
     def search_entities(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Search for entities by name."""
         try:
@@ -411,20 +409,20 @@ class GraphRAGMCPTool:
         """Close all connections and free resources"""
         try:
             logger.info("Closing GraphRAG MCP Tool connections")
-            
+
             if self.neo4j_manager:
                 self.neo4j_manager.close()
-            
+
             if self.qdrant_manager:
                 self.qdrant_manager.close()
-            
+
             if self.embedding_processor:
                 self.embedding_processor.unload_model()
-            
+
             logger.info("GraphRAG MCP Tool connections closed")
         except Exception as e:
             logger.error(f"Error closing connections: {str(e)}")
 
     def __del__(self):
         """Cleanup when the object is garbage collected"""
-        self.close() 
+        self.close()

@@ -4,11 +4,11 @@ Heavy dependencies (torch, transformers) are mocked so tests run fast
 without downloading models.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
 
 from tests.conftest import MockConfig
-
 
 # ---------------------------------------------------------------------------
 # _is_e5_model (module-level helper)

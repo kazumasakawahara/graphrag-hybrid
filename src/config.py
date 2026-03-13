@@ -6,7 +6,7 @@ with backward-compatible dot-notation access.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings

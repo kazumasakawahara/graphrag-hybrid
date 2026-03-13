@@ -11,7 +11,6 @@ from src.processors.document_processor import DocumentProcessor, _split_sentence
 # Re-use the lightweight mock from conftest
 from tests.conftest import MockConfig
 
-
 # ---------------------------------------------------------------------------
 # _split_sentences_ja (module-level function)
 # ---------------------------------------------------------------------------

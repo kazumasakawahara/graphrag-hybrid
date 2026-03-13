@@ -4,11 +4,11 @@ All external dependencies (Neo4j, Qdrant, embedding model) are replaced
 with MagicMock objects so tests run without infrastructure.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
-from src.query_engine import QueryEngine
+import pytest
 
+from src.query_engine import QueryEngine
 
 # ---------------------------------------------------------------------------
 # Fixtures

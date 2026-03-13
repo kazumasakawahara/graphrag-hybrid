@@ -12,17 +12,17 @@ Usage:
     python server.py --http   # HTTP mode (開発・テスト用)
 """
 
-import sys
-import os
 import json
 import logging
+import os
+import sys
 from typing import Optional
 
 # プロジェクトルートをパスに追加
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastmcp import FastMCP
 from dotenv import load_dotenv
+from fastmcp import FastMCP
 
 # .envを読み込み
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
@@ -176,8 +176,8 @@ def ingest_document(file_path: str) -> str:
         tool = _get_tool()
 
         # DocumentProcessor を使用して日本語対応チャンク分割
-        from src.processors.document_processor import DocumentProcessor
         from src.config import Config
+        from src.processors.document_processor import DocumentProcessor
 
         config = Config()
         doc_processor = DocumentProcessor(config)
