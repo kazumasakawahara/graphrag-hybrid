@@ -2,6 +2,11 @@
 GraphRAG Hybrid MCP Server
 Neo4j + Qdrant ハイブリッド検索システムのMCPサーバー
 
+日本語対応版:
+  - Embedding: intfloat/multilingual-e5-base (768次元)
+  - チャンキング: 日本語文境界ベース
+  - E5プレフィックス: query/passage を自動付与
+
 Usage:
     python server.py          # STDIO mode (Claude Desktop用)
     python server.py --http   # HTTP mode (開発・テスト用)
@@ -23,7 +28,10 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
 
 # ログ設定
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # === FastMCPサーバー作成 ===
@@ -31,7 +39,8 @@ mcp = FastMCP(
     "GraphRAG Hybrid Search",
     instructions=(
         "Neo4j グラフDB + Qdrant ベクトルDB のハイブリッド検索システムです。\n"
-        "ドキュメントのセマンティック検索、カテゴリ検索、ハイブリッド検索が可能です。\n"
+        "日本語・英語両対応。ドキュメントのセマンティック検索、カテゴリ検索、"
+        "ハイブリッド検索が可能です。\n"
         "検索結果のコンテキスト拡張や関連ドキュメントの提案も行えます。"
     ),
 )
@@ -63,7 +72,7 @@ def search(
     """ドキュメントをハイブリッド検索します。
 
     Neo4j（グラフ構造）とQdrant（ベクトル類似度）を組み合わせた
-    高精度なドキュメント検索を行います。
+    高精度なドキュメント検索を行います。日本語・英語両対応。
 
     Args:
         query: 検索クエリテキスト
@@ -147,11 +156,11 @@ def get_statistics() -> str:
 def ingest_document(file_path: str) -> str:
     """新しいドキュメントをシステムに取り込みます。
 
-    Markdownファイルを読み込み、チャンク分割してNeo4jとQdrantの
-    両方に登録します。
+    Markdownファイルを読み込み、日本語対応のチャンク分割を行い、
+    Neo4jとQdrantの両方に登録します。
 
     Args:
-        file_path: 取り込むドキュメントのファイルパス
+        file_path: 取り込むドキュメントのファイルパス（.md）
 
     Returns:
         取り込み結果のJSON文字列
@@ -159,77 +168,57 @@ def ingest_document(file_path: str) -> str:
     try:
         # ファイル存在確認
         if not os.path.exists(file_path):
-            return json.dumps({"error": f"ファイルが見つかりません: {file_path}"}, ensure_ascii=False)
+            return json.dumps(
+                {"error": f"ファイルが見つかりません: {file_path}"},
+                ensure_ascii=False
+            )
 
         tool = _get_tool()
 
-        # ファイル読み込み
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+        # DocumentProcessor を使用して日本語対応チャンク分割
+        from src.processors.document_processor import DocumentProcessor
+        from src.config import Config
 
-        filename = os.path.basename(file_path)
-        
-        # メタデータ抽出
-        title = filename.replace('.md', '').replace('_', ' ').replace('-', ' ').title()
-        category = "imported"
+        config = Config()
+        doc_processor = DocumentProcessor(config)
 
-        # ヘッダーからタイトル抽出を試行
-        for line in content.split('\n'):
-            line = line.strip()
-            if line.startswith('# '):
-                title = line[2:].strip()
-                break
-
-        # チャンク分割
-        from src.processors.embedding_processor import EmbeddingProcessor
-        chunk_size = int(os.getenv("CHUNK_SIZE", "600"))
-        chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
-
-        chunks = []
-        words = content.split()
-        position = 0
-        step = max(1, chunk_size - chunk_overlap)
-
-        for i in range(0, len(words), step):
-            chunk_text = ' '.join(words[i:i + chunk_size])
-            if chunk_text.strip():
-                import hashlib
-                chunk_id = int(hashlib.md5(f"{filename}_{position}".encode()).hexdigest()[:8], 16)
-                chunks.append({
-                    'id': chunk_id,
-                    'text': chunk_text,
-                    'doc_id': filename,
-                    'position': position,
-                    'metadata': {
-                        'title': title,
-                        'category': category,
-                        'source': file_path
-                    }
-                })
-                position += 1
+        try:
+            metadata, chunks = doc_processor.process_document(file_path)
+        except ValueError as e:
+            return json.dumps(
+                {"error": f"未対応のファイル形式です: {str(e)}"},
+                ensure_ascii=False
+            )
 
         if not chunks:
-            return json.dumps({"error": "チャンクの生成に失敗しました"}, ensure_ascii=False)
+            return json.dumps(
+                {"error": "チャンクの生成に失敗しました"},
+                ensure_ascii=False
+            )
 
         # Neo4jに登録
         tool.neo4j_manager.import_document(
-            doc_id=filename,
-            title=title,
-            category=category,
+            doc_id=metadata['id'],
+            title=metadata.get('title', ''),
+            category=metadata.get('category', 'imported'),
             chunks=chunks,
-            metadata={'source': file_path}
+            metadata={
+                'source': file_path,
+                'key_concepts': metadata.get('key_concepts', []),
+            }
         )
 
-        # Qdrantに登録
+        # Qdrantに登録（passage embedding が自動適用される）
         tool.qdrant_manager.import_chunks(chunks)
 
         result = {
             "status": "success",
             "document": {
-                "id": filename,
-                "title": title,
-                "category": category,
-                "chunk_count": len(chunks)
+                "id": metadata['id'],
+                "title": metadata.get('title', ''),
+                "category": metadata.get('category', 'imported'),
+                "chunk_count": len(chunks),
+                "file_path": file_path,
             }
         }
         return json.dumps(result, ensure_ascii=False, indent=2)
@@ -294,7 +283,9 @@ def system_status() -> str:
         }
         return json.dumps(status, ensure_ascii=False, indent=2)
     except Exception as e:
-        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
+        return json.dumps(
+            {"status": "error", "message": str(e)}, ensure_ascii=False
+        )
 
 
 # === エントリーポイント ===

@@ -3,10 +3,10 @@ GraphRAG Hybrid - ドキュメントアップロード・管理 UI
 PDF/Markdown ドキュメントを GraphRAG システムに取り込む Streamlit アプリケーション
 """
 
+import logging
 import os
 import sys
 import uuid as _uuid
-import logging
 
 import streamlit as st
 
@@ -18,8 +18,8 @@ from src.database.neo4j_manager import Neo4jManager
 from src.database.qdrant_manager import QdrantManager
 from src.processors.document_processor import DocumentProcessor
 from src.processors.embedding_processor import EmbeddingProcessor
-from src.processors.pdf_processor import PDFProcessor
 from src.processors.entity_extractor import EntityExtractor
+from src.processors.pdf_processor import PDFProcessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -179,8 +179,8 @@ def upload_tab():
         return
 
     neo4j, qdrant, err = _connect_databases()
-    if err:
-        st.error(f"データベース接続に失敗しました:\n{err}")
+    if err or not neo4j or not qdrant:
+        st.error(f"データベース接続に失敗しました:\n{err or '接続を確認してください'}")
         return
 
     doc_processor = _get_doc_processor()
@@ -229,7 +229,7 @@ def upload_tab():
             }
 
             # --- テキストをチャンク分割 ---
-            chunks_text = doc_processor._chunk_text(md_text)
+            chunks_text = doc_processor._chunk_text_ja(md_text)
             chunk_objects = [
                 {
                     "id": str(_uuid.uuid4()),

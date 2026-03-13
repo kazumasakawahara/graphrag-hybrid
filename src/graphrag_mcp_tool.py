@@ -121,7 +121,7 @@ class GraphRAGMCPTool:
                 results = self.query_engine.hybrid_search(query, limit, category)
                 
             # Format the results for MCP
-            formatted_results = self._format_search_results(results, query)
+            formatted_results = self._format_search_results(results, query, search_type)
             
             return formatted_results
         except Exception as e:
@@ -136,12 +136,22 @@ class GraphRAGMCPTool:
                 }
             }
             
-    def _format_search_results(self, results: List[Dict[Any, Any]], query: str) -> Dict[str, Any]:
-        """Format search results for MCP output"""
+    def _format_search_results(
+        self, results: List[Dict[Any, Any]], query: str, search_type: str = "hybrid"
+    ) -> Dict[str, Any]:
+        """Format search results for MCP output.
+
+        Args:
+            results: Raw search results from the query engine.
+            query: The original search query.
+            search_type: The type of search that was performed.
+
+        Returns:
+            Dict containing formatted results and metadata.
+        """
         formatted_results = []
-        
+
         for i, result in enumerate(results):
-            # Extract the most important data from each result
             formatted_result = {
                 "id": result.get('id', f"result_{i}"),
                 "text": result.get('text', ''),
@@ -152,7 +162,7 @@ class GraphRAGMCPTool:
                     "category": result.get('document', {}).get('category', 'Uncategorized')
                 }
             }
-            
+
             # Add context if available
             if 'context' in result and result['context']:
                 context_text = []
@@ -161,22 +171,19 @@ class GraphRAGMCPTool:
                 context_text.append(result.get('text', ''))
                 if 'next' in result['context'] and result['context']['next']:
                     context_text.extend(result['context']['next'])
-                
+
                 formatted_result['context'] = "\n\n".join(context_text)
-            
+
             formatted_results.append(formatted_result)
-        
-        # Prepare the final response
-        response = {
+
+        return {
             "results": formatted_results,
             "metadata": {
                 "query": query,
                 "result_count": len(formatted_results),
-                "search_type": "hybrid" if any('semantic_score' in r for r in results) else "category"
+                "search_type": search_type,
             }
         }
-        
-        return response
         
     def get_document(self, doc_id: str) -> Dict[str, Any]:
         """
@@ -418,64 +425,6 @@ class GraphRAGMCPTool:
         except Exception as e:
             logger.error(f"Error closing connections: {str(e)}")
 
-    # MCP Tool standard method implementations
-    def handle_request(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Handle an MCP request
-        
-        Args:
-            action: The action to perform (search, get_document, etc.)
-            params: Parameters for the action
-            
-        Returns:
-            Dict containing the action result
-        """
-        try:
-            logger.info(f"MCP Request: {action}")
-            
-            if action == "search":
-                return self.search(
-                    query=params.get('query', ''),
-                    limit=params.get('limit', 5),
-                    category=params.get('category'),
-                    search_type=params.get('search_type', 'hybrid')
-                )
-            elif action == "get_document":
-                return self.get_document(params.get('doc_id', ''))
-            elif action == "expand_context":
-                return self.expand_context(
-                    chunk_id=params.get('chunk_id', ''),
-                    context_size=params.get('context_size', 2)
-                )
-            elif action == "get_categories":
-                return self.get_categories()
-            elif action == "get_statistics":
-                return self.get_statistics()
-            elif action == "search_entities":
-                return self.search_entities(
-                    query=params.get('query', ''),
-                    limit=params.get('limit', 10)
-                )
-            elif action == "get_entity_graph":
-                return self.get_entity_graph(
-                    entity_name=params.get('entity_name', '')
-                )
-            else:
-                return {
-                    "error": f"Unknown action: {action}",
-                    "available_actions": [
-                        "search", "get_document", "expand_context",
-                        "get_categories", "get_statistics",
-                        "search_entities", "get_entity_graph"
-                    ]
-                }
-        except Exception as e:
-            logger.error(f"Error handling MCP request: {str(e)}")
-            return {
-                "error": str(e),
-                "action": action
-            }
-    
     def __del__(self):
         """Cleanup when the object is garbage collected"""
         self.close() 
